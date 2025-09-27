@@ -45,15 +45,8 @@ export const getTablePrice = (bookingDate, startTime, endTime) => {
   return Math.max(roundedHours, 1) * 100;
 };
 
-// multer storage configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Make sure this directory exists
-  },
-  filename: (req, file, cb) => {
-    cb(null, "image-" + file.originalname);
-  }
-});
+// Use memory storage to keep file in memory
+const storage = multer.memoryStorage();
 
 // File filter to only allow images
 const fileFilter = (req, file, cb) => {

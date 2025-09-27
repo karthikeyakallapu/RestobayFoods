@@ -10,12 +10,13 @@ import useCartStore from "../../store/use-cart";
 const MenuItem = memo(({ item, addToCart, removeFromCart }) => (
   <div
     // eslint-disable-next-line react/prop-types
-    className={` ${!item.available ? "opacity-25 pointer-events-none ":""} bg-[#fde4c7] flex flex-col items-center rounded-xl  justify-center m-2 p-3 w-72 `}
+    className={` ${!item.available ? "opacity-25 pointer-events-none " : ""
+    } bg-[#fde4c7] flex flex-col items-center rounded-xl  justify-center m-2 p-3 w-72 `}
     key={item.id}
   >
     <div className="overflow-hidden rounded-xl">
       <img
-        src={item.image_url}
+        src={import.meta.env.VITE_BLOB_IMAGES_URL + item.image_url}
         className="h-44 w-64 object-cover rounded-xl transition-transform hover:scale-105"
         alt={item.name}
         loading="lazy"

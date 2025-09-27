@@ -272,7 +272,10 @@ const Menu = () => {
                       <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0 overflow-hidden">
                         {item.image_url ? (
                           <img
-                            src={item.image_url}
+                            src={
+                              import.meta.env.VITE_BLOB_IMAGES_URL +
+                              item.image_url
+                            }
                             alt={item.name}
                             className="h-full w-full object-cover"
                           />

@@ -1,4 +1,5 @@
 import { pool } from "../../config/database.js";
+import { put } from "@vercel/blob";
 
 class AdminController {
   // Fetch all orders with user details
@@ -190,12 +191,16 @@ class AdminController {
         return res.status(400).json({ error: "No image file provided" });
       }
 
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // req.file.buffer contains the file in memory
+      const { buffer, originalname } = req.file;
 
-      return res.status(200).json({
-        success: true,
-        imageUrl: imageUrl
+      // Upload directly to Vercel Blob
+      const { url } = await put(`resto-menu/${originalname}`, buffer, {
+        access: "public",
+        allowOverwrite: true
       });
+
+      res.json({ message: "Uploaded to Vercel Blob", imageUrl: originalname });
     } catch (error) {
       console.error("Error uploading image:", error);
       return res.status(500).json({

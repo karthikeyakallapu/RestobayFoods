@@ -11,6 +11,7 @@
   "author": "Karthikeya Kallapu",
   "license": "ISC",
   "dependencies": {
+    "@vercel/blob": "^2.0.0",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.0",
