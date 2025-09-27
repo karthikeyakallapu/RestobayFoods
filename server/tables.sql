@@ -35,24 +35,31 @@ CREATE TABLE
 CREATE TABLE
     orders (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        user_id BIGINT UNSIGNED NOT NULL, -- Must match users.id
+        user_id BIGINT UNSIGNED NOT NULL,
         total_amount DECIMAL(10, 2) NOT NULL,
-        status ENUM (
-            'PENDING',
-            'PAYMENT_PENDING',
-            'PAYMENT_FAILED',
-            'PROCESSING',
-            'CANCELLED',
-            'REFUNDED',
-            'PARTIALLY_REFUNDED',
-            'COMPLETED'
-        ) DEFAULT 'PENDING',
-        payment_status ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED') DEFAULT 'PENDING',
-        transaction_id VARCHAR(255),
+        status ENUM('OPEN', 'INPROGRESS', 'CANCELLED', 'COMPLETED') DEFAULT 'OPEN',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        payment_completed_at TIMESTAMP NULL,
         deleted_at TIMESTAMP NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+
+-- Order payments table 
+CREATE TABLE
+    order_payments (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        order_id BIGINT UNSIGNED NOT NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        currency VARCHAR(5) NOT NULL DEFAULT 'INR',
+        transaction_id VARCHAR(255),
+        payment_status ENUM('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED') DEFAULT 'PENDING',
+        payment_method VARCHAR(50),
+        payment_date TIMESTAMP NULL,
+        verification_signature VARCHAR(255), -- Razorpay signature for payment verification
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     );
 
@@ -63,13 +70,13 @@ CREATE TABLE
         item_id INT NOT NULL, -- Matches with cart_items.item_id
         quantity INT NOT NULL DEFAULT 1,
         price DECIMAL(10, 2) NOT NULL,
-        status ENUM (
-            'ACTIVE',
+        status ENUM(
+            'OPEN',
             'CANCELLED',
+            'INPROGRESS',
             'REFUNDED',
-            'PARTIALLY_REFUNDED',
             'COMPLETED'
-        ) DEFAULT 'ACTIVE',
+        ) DEFAULT 'OPEN',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP NULL,
@@ -85,7 +92,7 @@ CREATE TABLE
         `table_number` VARCHAR(10) NOT NULL,
         `capacity` INT NOT NULL,
         `location` VARCHAR(50) NOT NULL,
-        `status` ENUM ('active', 'inactive', 'maintenance') NOT NULL DEFAULT 'active',
+        `status` ENUM('active', 'inactive', 'maintenance') NOT NULL DEFAULT 'active',
         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
@@ -101,7 +108,7 @@ CREATE TABLE
         `end_time` TIME NOT NULL,
         `number_of_people` INT NOT NULL,
         `user_id` BIGINT UNSIGNED NOT NULL,
-        `status` ENUM ('CONFIRMED', 'CANCELLED', 'PENDING', 'FREE') NOT NULL DEFAULT 'PENDING',
+        `status` ENUM('CONFIRMED', 'CANCELLED', 'PENDING', 'FREE') NOT NULL DEFAULT 'PENDING',
         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
@@ -117,7 +124,7 @@ CREATE TABLE
         `amount` DECIMAL(10, 2) NOT NULL,
         `currency` VARCHAR(5) NOT NULL DEFAULT 'INR',
         `transaction_id` VARCHAR(100),
-        `payment_status` ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED') DEFAULT 'PENDING',
+        `payment_status` ENUM('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED') DEFAULT 'PENDING',
         `payment_method` VARCHAR(50),
         `payment_date` TIMESTAMP NULL,
         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

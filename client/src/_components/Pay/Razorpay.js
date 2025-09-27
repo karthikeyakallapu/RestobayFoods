@@ -77,6 +77,14 @@ export async function displayRazorpay(navigate, type, data) {
           console.error("Payment verification failed:", error);
         }
       },
+      modal: {
+        // Called if user closes the Razorpay modal
+        ondismiss: function () {
+          console.log("Razorpay modal dismissed");
+          useCartStore.getState().refreshCart();
+          useModalStore.getState().closeModal();
+        }
+      },
       theme: { color: "#ef5644" }
     };
 

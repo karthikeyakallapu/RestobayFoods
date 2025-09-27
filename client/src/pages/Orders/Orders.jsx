@@ -87,9 +87,9 @@ const Orders = () => {
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         order.status === "COMPLETED"
                           ? "bg-green-100 text-green-800"
-                          : order.status === "PROCESSING"
+                          : order.status === "INPROGRESS"
                           ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
+                          : "bg-red-300 text-yellow-800"
                       }`}
                     >
                       {order.status}
@@ -124,14 +124,14 @@ const Orders = () => {
                         </span>
                         <span
                           className={`px-3  ml-4 mt-1 py-1 rounded-full text-xs font-medium ${
-                            order.payment_status === "COMPLETED"
+                            order.payment.status === "COMPLETED"
                               ? "bg-green-100 text-green-800"
-                              : order.payment_status === "PAYMENT_PENDING"
+                              : order.payment.status === "PAYMENT_PENDING"
                               ? "bg-blue-100 text-blue-800"
                               : "bg-yellow-100 text-yellow-800"
                           }`}
                         >
-                          {order.payment_status}
+                          {order.payment.status}
                         </span>
                       </div>
                     </div>
