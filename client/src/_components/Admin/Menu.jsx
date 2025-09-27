@@ -350,7 +350,10 @@ const Menu = () => {
                             className="text-red-600 hover:text-red-900 px-2 py-1 rounded hover:bg-red-50"
                             disabled={menuMutation.isPending}
                             onClick={() =>
-                              updateMenu("DELETE", { item_id: item.id })
+                              updateMenu("DELETE", {
+                                item_id: item.id,
+                                imageUrl: item.image_url
+                              })
                             }
                           >
                             Delete

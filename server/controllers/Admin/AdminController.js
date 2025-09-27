@@ -1,5 +1,5 @@
 import { pool } from "../../config/database.js";
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 
 class AdminController {
   // Fetch all orders with user details
@@ -81,8 +81,20 @@ class AdminController {
             .json({ type: "success", message: "Item disabled successfully" });
 
         case "DELETE":
-          await pool.query("DELETE FROM menu WHERE id = ?", payload.item_id);
-          return res.status(200).json({ message: "Item deleted successfully" });
+          try {
+            await pool.query("DELETE FROM menu WHERE id = ?", payload.item_id);
+            // Also delete the image from Vercel Blob
+            await del(`resto-menu/${payload.imageUrl}`);
+            return res
+              .status(200)
+              .json({ message: "Item deleted successfully" });
+          } catch (error) {
+            console.log("Error deleting item:", error);
+            return res.status(500).json({
+              type: "error",
+              message: "Failed to delete item"
+            });
+          }
 
         case "ADD_ITEM": {
           const { name, description, price, category, imageUrl } = payload;
@@ -94,10 +106,9 @@ class AdminController {
             });
           }
 
-          const [existingItem] = await pool.query(
-            "SELECT * FROM menu WHERE name = ?",
-            [name]
-          );
+          const [
+            existingItem
+          ] = await pool.query("SELECT * FROM menu WHERE name = ?", [name]);
 
           if (existingItem.length > 0) {
             return res.status(400).json({
