@@ -4,6 +4,7 @@ import restoApiInstance from "../../service/api/api";
 import BlockWrapper from "@/_components/Wrappers/BlockWrapper";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
+import MainLoader from "../../_components/Loaders/MainLoader";
 
 const MyTableBookings = () => {
   const { data, isLoading, isError } = useQuery({
@@ -12,16 +13,7 @@ const MyTableBookings = () => {
   });
 
   if (isLoading) {
-    return (
-      <BlockWrapper>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-pulse flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-red-200 mb-4"></div>
-            <div className="text-red-500">Loading your bookings...</div>
-          </div>
-        </div>
-      </BlockWrapper>
-    );
+    return <MainLoader />;
   }
 
   if (isError) {

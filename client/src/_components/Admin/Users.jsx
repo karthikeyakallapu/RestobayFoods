@@ -2,22 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import restoApiInstance from "../../service/api/api";
 import { Search, ChevronDown, ChevronUp, MoreVertical, Mail, Phone, AlertCircle } from 'lucide-react';
+import MainLoader from "../Loaders/MainLoader";
 
 const Users = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-  
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["resto-admin-users"],
     queryFn: restoApiInstance.getAllUsers
   });
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <MainLoader />;
   }
 
   if (isError) {
@@ -41,27 +38,28 @@ const Users = () => {
 
   // Handle sorting
   const requestSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
     }
     setSortConfig({ key, direction });
   };
 
   // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.phone?.includes(searchTerm)
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone?.includes(searchTerm)
   );
 
   // Sort users based on current sort configuration
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? -1 : 1;
+      return sortConfig.direction === "asc" ? -1 : 1;
     }
     if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? 1 : -1;
+      return sortConfig.direction === "asc" ? 1 : -1;
     }
     return 0;
   });
@@ -69,15 +67,19 @@ const Users = () => {
   // Render sort icon
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) return null;
-    return sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
+    return sortConfig.direction === "asc" ? (
+      <ChevronUp size={16} />
+    ) : (
+      <ChevronDown size={16} />
+    );
   };
 
   // Generate avatar initials from name
   const getInitials = (name) => {
     return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
       .toUpperCase()
       .substring(0, 2);
   };
@@ -88,7 +90,7 @@ const Users = () => {
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
+
     const h = hash % 360;
     return `hsl(${h}, 70%, 80%)`;
   };
@@ -111,40 +113,43 @@ const Users = () => {
           />
         </div>
       </div>
-      
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th 
-                scope="col" 
+              <th
+                scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => requestSort('name')}
+                onClick={() => requestSort("name")}
               >
                 <div className="flex items-center">
-                  User {renderSortIcon('name')}
+                  User {renderSortIcon("name")}
                 </div>
               </th>
-              <th 
-                scope="col" 
+              <th
+                scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => requestSort('email')}
+                onClick={() => requestSort("email")}
               >
                 <div className="flex items-center">
-                  Email {renderSortIcon('email')}
+                  Email {renderSortIcon("email")}
                 </div>
               </th>
-              <th 
-                scope="col" 
+              <th
+                scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                onClick={() => requestSort('phone')}
+                onClick={() => requestSort("phone")}
               >
                 <div className="flex items-center">
-                  Phone {renderSortIcon('phone')}
+                  Phone {renderSortIcon("phone")}
                 </div>
               </th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                scope="col"
+                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Actions
               </th>
             </tr>
@@ -152,18 +157,22 @@ const Users = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedUsers.length > 0 ? (
               sortedUsers.map((user, index) => (
-                <tr 
-                  key={index} 
+                <tr
+                  key={index}
                   className="hover:bg-gray-50 transition-colors duration-150"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-medium" 
-                           style={{ backgroundColor: getAvatarColor(user.name) }}>
+                      <div
+                        className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-medium"
+                        style={{ backgroundColor: getAvatarColor(user.name) }}
+                      >
                         {getInitials(user.name)}
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </div>
                         {user.name === "Admin" && (
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
                             Admin
@@ -193,7 +202,10 @@ const Users = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-center text-gray-500">
+                <td
+                  colSpan="4"
+                  className="px-6 py-4 whitespace-nowrap text-center text-gray-500"
+                >
                   No users found matching your search
                 </td>
               </tr>
@@ -201,11 +213,12 @@ const Users = () => {
           </tbody>
         </table>
       </div>
-      
+
       {/* Footer with pagination */}
       <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
         <div className="text-sm text-gray-500">
-          Showing <span className="font-medium">{sortedUsers.length}</span> of <span className="font-medium">{users.length}</span> users
+          Showing <span className="font-medium">{sortedUsers.length}</span> of{" "}
+          <span className="font-medium">{users.length}</span> users
         </div>
         <div className="flex space-x-2">
           <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">

@@ -3,6 +3,7 @@ import { Clock, Package, DollarSign, ShoppingBag } from "lucide-react";
 import restoApiInstance from "../../service/api/api";
 import { useNavigate } from "react-router-dom";
 import BlockWrapper from "@/_components/Wrappers/BlockWrapper";
+import MainLoader from "../../_components/Loaders/MainLoader";
 
 const Orders = () => {
   const { data, isLoading, isError } = useQuery({
@@ -13,16 +14,7 @@ const Orders = () => {
   const navigate = useNavigate();
 
   if (isLoading) {
-    return (
-      <BlockWrapper>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-pulse flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-red-200 mb-4"></div>
-            <div className="text-red-500">Loading your orders...</div>
-          </div>
-        </div>
-      </BlockWrapper>
-    );
+    return <MainLoader />;
   }
 
   if (isError) {
@@ -57,7 +49,8 @@ const Orders = () => {
           <p className="text-gray-600 font-medium">No orders found</p>
           <button
             className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
-            onClick={() => navigate("/menu")}          >
+            onClick={() => navigate("/menu")}
+          >
             Browse Menu
           </button>
         </div>

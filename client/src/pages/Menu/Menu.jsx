@@ -6,6 +6,7 @@ import MenuBar from "@/_components/Menu/MenuBar";
 import useMenuStore from "../../store/use-menu";
 import PropTypes from "prop-types";
 import useCartStore from "../../store/use-cart";
+import MainLoader from "../../_components/Loaders/MainLoader";
 
 const MenuItem = memo(({ item, addToCart, removeFromCart }) => (
   <div
@@ -109,11 +110,7 @@ const Menu = () => {
   }, [data, selectedCategory, search, cart]);
 
   if (isLoading) {
-    return (
-      <BlockWrapper>
-        <h1>Loading...</h1>
-      </BlockWrapper>
-    );
+    return <MainLoader />;
   }
 
   if (isError) {

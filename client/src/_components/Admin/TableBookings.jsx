@@ -12,6 +12,8 @@ import {
   AlertCircle
 } from "lucide-react";
 import PropTypes from "prop-types";
+import MainLoader from "../Loaders/MainLoader";
+
 const TableBookings = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({
@@ -25,11 +27,7 @@ const TableBookings = () => {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <MainLoader />;
   }
 
   if (isError) {

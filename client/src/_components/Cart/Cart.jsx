@@ -9,7 +9,7 @@ const CartItem = memo(({ item, addToCart, removeFromCart }) => (
     {/* Item Info */}
     <div className="col-span-2 flex items-center">
       <img
-        src={item.image_url}
+        src={import.meta.env.VITE_BLOB_IMAGES_URL + item.image_url}
         className="h-12 w-12 object-cover rounded-xl transition-transform hover:scale-105"
         alt={item.name}
         loading="lazy"
