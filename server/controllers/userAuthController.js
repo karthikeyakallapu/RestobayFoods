@@ -35,6 +35,13 @@ class UserAuthController {
         .json({ type: "error", message: "Invalid Email or Password" });
     }
 
+    if (user.verified !== 1) {
+      return res.status(400).json({
+        type: "error",
+        message: "Email not verified. Please verify your email."
+      });
+    }
+
     // Generate JWT Token
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role },
@@ -52,10 +59,12 @@ class UserAuthController {
   async register(req, res) {
     const { name, email, phone, password } = req.body;
 
-    const [existingUsers] = await pool.query(
-      "SELECT * FROM users WHERE email = ? OR phone = ?",
-      [email, phone]
-    );
+    const [
+      existingUsers
+    ] = await pool.query("SELECT * FROM users WHERE email = ? OR phone = ?", [
+      email,
+      phone
+    ]);
 
     if (existingUsers.length > 0) {
       return res
@@ -66,7 +75,9 @@ class UserAuthController {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const [result] = await pool.query(
+    const [
+      result
+    ] = await pool.query(
       "INSERT INTO users (name, email, phone, password) VALUES (?, ?, ?, ?)",
       [name, email, phone, hashedPassword]
     );
@@ -80,9 +91,8 @@ class UserAuthController {
       }
     );
 
-    const verificationLink = `${
-      process.env.FRONTEND_URL
-    }/verify-email?token=${encodeURIComponent(token)}`;
+    const verificationLink = `${process.env
+      .FRONTEND_URL}/verify-email?token=${encodeURIComponent(token)}`;
 
     // Email Content
     const mailOptions = {
@@ -90,7 +100,7 @@ class UserAuthController {
       to: email,
       subject: "Welcome to Restobay - Verify Your Email",
       html: `
-            <p>Hello ${users[0].name},</p>
+            <p>Hello ${name},</p>
             <p>Please click the link below to verify your mail:</p>
             <a href="${verificationLink}">Verify Email</a>
             <p>This link will expire in 1 hour.</p>
@@ -214,9 +224,8 @@ class UserAuthController {
         }
       );
 
-      const verificationLink = `${
-        process.env.FRONTEND_URL
-      }/verify-email?token=${encodeURIComponent(token)}`;
+      const verificationLink = `${process.env
+        .FRONTEND_URL}/verify-email?token=${encodeURIComponent(token)}`;
 
       // Email Content
       const mailOptions = {
@@ -288,9 +297,8 @@ class UserAuthController {
         { expiresIn: "1h" }
       );
 
-      const resetPasswordLink = `${
-        process.env.FRONTEND_URL
-      }/reset-password?token=${encodeURIComponent(token)}`;
+      const resetPasswordLink = `${process.env
+        .FRONTEND_URL}/reset-password?token=${encodeURIComponent(token)}`;
 
       // Email Content
       const mailOptions = {
