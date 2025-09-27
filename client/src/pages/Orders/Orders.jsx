@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Package, DollarSign, ShoppingBag } from "lucide-react";
+import { Clock, Package, ShoppingBag, IndianRupee } from "lucide-react";
 import restoApiInstance from "../../service/api/api";
 import { useNavigate } from "react-router-dom";
 import BlockWrapper from "@/_components/Wrappers/BlockWrapper";
 import MainLoader from "../../_components/Loaders/MainLoader";
+import FastfoodIcon from "@mui/icons-material/Fastfood";
 
 const Orders = () => {
   const { data, isLoading, isError } = useQuery({
@@ -65,10 +66,9 @@ const Orders = () => {
             >
               <div className="flex flex-col md:flex-row">
                 <div className="md:w-1/4 p-4">
-                  <img
-                    src="https://restobay.vercel.app/images/vt.jpg"
-                    className="h-full w-full object-cover rounded-md"
-                    alt="Order thumbnail"
+                  <FastfoodIcon
+                    style={{ fontSize: 65, color: "#ef5644" }}
+                    className="mx-auto mt-4 mb-2"
                   />
                 </div>
 
@@ -85,9 +85,9 @@ const Orders = () => {
                     </div>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        order.status === "Delivered"
+                        order.status === "COMPLETED"
                           ? "bg-green-100 text-green-800"
-                          : order.status === "Processing"
+                          : order.status === "PROCESSING"
                           ? "bg-blue-100 text-blue-800"
                           : "bg-yellow-100 text-yellow-800"
                       }`}
@@ -113,22 +113,34 @@ const Orders = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ">
                     <div className="flex items-center">
-                      <DollarSign size={16} className="text-red-500 mr-2" />
-                      <div>
+                      <IndianRupee size={18} className="text-red-500 mr-2" />
+                      <div className="flex items-center justify-center text-sm">
                         <span className="text-gray-500">Amount:</span>{" "}
                         <span className="font-medium">
-                          ${order.total_amount}
+                          &nbsp;
+                          {order.total_amount}
+                        </span>
+                        <span
+                          className={`px-3  ml-4 mt-1 py-1 rounded-full text-xs font-medium ${
+                            order.payment_status === "COMPLETED"
+                              ? "bg-green-100 text-green-800"
+                              : order.payment_status === "PAYMENT_PENDING"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {order.payment_status}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <Clock size={16} className="text-red-500 mr-2" />
+                    <div className="flex items-center ">
+                      <Clock size={18} className="text-red-500 mr-2" />
                       <div>
                         <span className="text-gray-500">Placed:</span>{" "}
-                        <span className="font-medium">
+                        <span className="font-medium text-sm">
                           {new Date(order.updated_at).toLocaleString()}
                         </span>
                       </div>
