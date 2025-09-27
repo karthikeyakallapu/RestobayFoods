@@ -233,7 +233,10 @@ const Tables = () => {
                   </Typography>
                   <TimePicker
                     value={startTime}
-                    disablePast
+                    disablePast={
+                      dayjs().format("YYYY-MM-DD") ===
+                      dayjs(date).format("YYYY-MM-DD")
+                    }
                     onChange={(newValue) => setStartTime(newValue)}
                     sx={{
                       width: "100%",
@@ -271,7 +274,10 @@ const Tables = () => {
                   </Typography>
                   <TimePicker
                     value={endTime}
-                    disablePast
+                    disablePast={
+                      dayjs().format("YYYY-MM-DD") ===
+                      dayjs(date).format("YYYY-MM-DD")
+                    }
                     onChange={(newValue) => setEndTime(newValue)}
                     sx={{
                       width: "100%",
