@@ -63,7 +63,7 @@ class AdminController {
       switch (action) {
         case "ENABLE":
           await pool.query(
-            "UPDATE MENU SET available = 1 WHERE id = ?",
+            "UPDATE menu SET available = 1 WHERE id = ?",
             payload.item_id
           );
           return res
@@ -72,7 +72,7 @@ class AdminController {
 
         case "DISABLE":
           await pool.query(
-            "UPDATE MENU SET available = 0 WHERE id = ?",
+            "UPDATE menu SET available = 0 WHERE id = ?",
             payload.item_id
           );
           return res
@@ -80,7 +80,7 @@ class AdminController {
             .json({ type: "success", message: "Item disabled successfully" });
 
         case "DELETE":
-          await pool.query("DELETE FROM MENU WHERE id = ?", payload.item_id);
+          await pool.query("DELETE FROM menu WHERE id = ?", payload.item_id);
           return res.status(200).json({ message: "Item deleted successfully" });
 
         case "ADD_ITEM": {
@@ -94,7 +94,7 @@ class AdminController {
           }
 
           const [existingItem] = await pool.query(
-            "SELECT * FROM MENU WHERE name = ?",
+            "SELECT * FROM menu WHERE name = ?",
             [name]
           );
 
@@ -106,7 +106,7 @@ class AdminController {
           }
 
           await pool.query(
-            "INSERT INTO MENU (name, description, price, category, image_url) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO menu (name, description, price, category, image_url) VALUES (?, ?, ?, ?, ?)",
             [name, description, price, category, imageUrl]
           );
 
