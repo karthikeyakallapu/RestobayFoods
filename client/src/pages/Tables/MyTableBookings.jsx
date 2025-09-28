@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, Users, DollarSign, Table } from "lucide-react";
+import { Calendar, Clock, Users, IndianRupee, Table } from "lucide-react";
 import restoApiInstance from "../../service/api/api";
 import BlockWrapper from "@/_components/Wrappers/BlockWrapper";
 import dayjs from "dayjs";
@@ -123,10 +123,10 @@ const MyTableBookings = () => {
                     </div>
 
                     <div className="flex items-center">
-                      <DollarSign size={16} className="text-red-500 mr-2" />
+                      <IndianRupee size={16} className="text-red-500 mr-2" />
                       <div>
                         <span className="text-gray-500">Amount:</span>{" "}
-                        <span className="font-medium">${booking.amount}</span>
+                        <span className="font-medium"> {booking.amount}</span>
                       </div>
                     </div>
                   </div>

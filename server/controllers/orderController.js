@@ -2,8 +2,9 @@ import { pool } from "../config/database.js";
 import { razorpayHelper } from "../utils/helpers.js";
 import crypto from "crypto";
 
+
 class OrderController {
-  async makeOrder(req, res) {
+  makeOrder = async (req, res) => {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
@@ -170,16 +171,16 @@ class OrderController {
     } finally {
       connection.release();
     }
-  }
+  };
 
   // Helper method for table booking payment verification
-  async verifyTableBookingPayment(
+  verifyTableBookingPayment = async (
     connection,
     userId,
     orderCreationId,
     razorpayPaymentId,
     res
-  ) {
+  ) => {
     try {
       // Find and lock the table booking payment record
       const [paymentRecord] = await connection.query(
@@ -228,7 +229,7 @@ class OrderController {
         `UPDATE table_booking_payments 
        SET 
          payment_status = 'COMPLETED',
-         razorpay_payment_id = ?,
+         transaction_id = ?,
          payment_method = 'razorpay',
          payment_date = NOW(),
          updated_at = NOW()
@@ -259,9 +260,9 @@ class OrderController {
       await connection.rollback();
       throw error;
     }
-  }
+  };
 
-  async verifyPayment(req, res) {
+  verifyPayment = async (req, res) => {
     const connection = await pool.getConnection();
     try {
       const userId = req.userId;
@@ -464,13 +465,10 @@ class OrderController {
     } finally {
       connection.release();
     }
-  }
+  };
 
-  /**
-   * Retrieves order details by ID
-   */
-
-  async getOrders(req, res) {
+  // Retrieves order details by ID
+  getOrders = async (req, res) => {
     try {
       const userId = req.userId;
       const { status, payment_status, limit = 50, offset = 0 } = req.query;
@@ -579,7 +577,7 @@ class OrderController {
           process.env.NODE_ENV === "development" ? error.message : undefined
       });
     }
-  }
+  };
 }
 
 const orderController = new OrderController();

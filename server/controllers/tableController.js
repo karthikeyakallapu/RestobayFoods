@@ -1,6 +1,8 @@
 import { pool } from "../config/database.js";
 import { razorpayHelper, getTablePrice } from "../utils/helpers.js";
 import dayjs from "dayjs";
+import { validateBusinessHours } from "../utils/helpers.js";
+
 class TableContoller {
   async checkTableAvailability(req, res) {
     try {
@@ -97,12 +99,60 @@ class TableContoller {
     try {
       await connection.beginTransaction();
       const userId = req.userId;
-
       const { tableId, bookingDate, startTime, endTime, partySize } = req.body;
 
+      // Input validation
+      if (!tableId || !bookingDate || !startTime || !endTime || !partySize) {
+        return res.status(400).json({
+          type: "error",
+          message:
+            "Missing required fields: tableId, bookingDate, startTime, endTime, partySize"
+        });
+      }
+
+      // Validate data types
+      if (!Number.isInteger(Number(tableId)) || Number(tableId) <= 0) {
+        return res.status(400).json({
+          type: "error",
+          message: "Invalid table ID"
+        });
+      }
+
+      if (!Number.isInteger(Number(partySize)) || Number(partySize) <= 0) {
+        return res.status(400).json({
+          type: "error",
+          message: "Party size must be a positive integer"
+        });
+      }
+
+      // Validate date format
+      if (!dayjs(bookingDate).isValid()) {
+        return res.status(400).json({
+          type: "error",
+          message: "Invalid booking date format"
+        });
+      }
+
+      // Validate time format (HH:mm)
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+        return res.status(400).json({
+          type: "error",
+          message: "Invalid time format. Use HH:mm format"
+        });
+      }
+
+      // Validate that end time is after start time
+      if (startTime >= endTime) {
+        return res.status(400).json({
+          type: "error",
+          message: "End time must be after start time"
+        });
+      }
+
+      // Format date and check for past date
       const formattedDate = dayjs(bookingDate).format("YYYY-MM-DD");
 
-      // check for past date
       if (dayjs(formattedDate).isBefore(dayjs(), "day")) {
         return res.status(400).json({
           type: "error",
@@ -110,13 +160,9 @@ class TableContoller {
         });
       }
 
-      const amount = getTablePrice(formattedDate, startTime, endTime);
-
-      // Check if the table exists and is active
-      const [
-        tableCheck
-      ] = await connection.query(
-        `SELECT id,table_number, capacity, status FROM tables WHERE id = ?`,
+      // Check if table exists and is active
+      const [tableCheck] = await connection.query(
+        `SELECT id, table_number, capacity, status FROM tables WHERE id = ?`,
         [tableId]
       );
 
@@ -138,58 +184,43 @@ class TableContoller {
       if (partySize > tableCheck[0].capacity) {
         return res.status(400).json({
           type: "error",
-          message: `This table can only accommodate ${tableCheck[0]
-            .capacity} people`
+          message: `This table can only accommodate ${tableCheck[0].capacity} people`
         });
       }
 
-      // Check if the table is available for the requested time slot
-      const [
-        existingBookings
-      ] = await connection.query(
+      // Get table price
+      const amount = getTablePrice(formattedDate, startTime, endTime);
+
+      // Check table availability for the requested time slot
+      const [existingBookings] = await connection.query(
         `SELECT id FROM table_bookings
-         WHERE table_id = ?
-         AND booking_date = ?
-         AND status = 'confirmed'
-         AND (
-           (start_time <= ? AND end_time > ?) OR
-           (start_time < ? AND end_time >= ?) OR
-           (start_time >= ? AND end_time <= ?)
-         )`,
-        [
-          tableId,
-          formattedDate,
-          startTime,
-          startTime,
-          endTime,
-          endTime,
-          startTime,
-          endTime
-        ]
+       WHERE table_id = ?
+       AND booking_date = ?
+       AND status = 'CONFIRMED'
+       AND NOT (end_time <= ? OR start_time >= ?)`,
+        [tableId, formattedDate, startTime, endTime]
       );
 
       if (existingBookings.length) {
         return res.status(409).json({
-          success: false,
+          type: "error",
           message: "The table is not available for the selected time slot"
         });
       }
 
       // Check for existing pending booking with payment
-      const [
-        existingBooking
-      ] = await connection.query(
+      const [existingBooking] = await connection.query(
         `SELECT b.id, p.transaction_id, p.amount
-         FROM table_bookings b
-         JOIN table_booking_payments p ON b.id = p.booking_id
-         WHERE b.user_id = ?
-         AND b.table_id = ?
-         AND b.booking_date = ?
-         AND b.start_time = ?
-         AND b.end_time = ?
-         AND p.payment_status = 'PENDING'
-         ORDER BY b.created_at DESC
-         LIMIT 1;`,
+       FROM table_bookings b
+       JOIN table_booking_payments p ON b.id = p.booking_id
+       WHERE b.user_id = ?
+       AND b.table_id = ?
+       AND b.booking_date = ?
+       AND b.start_time = ?
+       AND b.end_time = ?
+       AND p.payment_status = 'PENDING'
+       ORDER BY b.created_at DESC
+       LIMIT 1`,
         [userId, tableId, formattedDate, startTime, endTime]
       );
 
@@ -204,7 +235,7 @@ class TableContoller {
         if (Number(amount) !== Number(existingAmount)) {
           await connection.query(
             `UPDATE table_booking_payments SET amount = ?, updated_at = NOW()
-             WHERE booking_id = ? AND payment_status = 'PENDING';`,
+           WHERE booking_id = ? AND payment_status = 'PENDING'`,
             [amount, bookingId]
           );
         }
@@ -222,19 +253,17 @@ class TableContoller {
       }
 
       // Create new booking
-      const [
-        bookingResult
-      ] = await connection.query(
+      const [bookingResult] = await connection.query(
         `INSERT INTO table_bookings (
-                table_id,
-                table_number,
-                booking_date,
-                start_time,
-                end_time,
-                number_of_people,
-                user_id,
-                status
-              ) VALUES (?, ?, ?, ?, ?, ?, ?,'PENDING')`,
+        table_id,
+        table_number,
+        booking_date,
+        start_time,
+        end_time,
+        number_of_people,
+        user_id,
+        status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
         [
           tableId,
           tableCheck[0].table_number,
@@ -258,13 +287,13 @@ class TableContoller {
       // Create payment record
       await connection.query(
         `INSERT INTO table_booking_payments (
-          booking_id,
-          user_id,
-          amount,
-          currency,
-          transaction_id,
-          payment_status
-        ) VALUES (?, ?, ?, ?, ?, 'PENDING')`,
+        booking_id,
+        user_id,
+        amount,
+        currency,
+        transaction_id,
+        payment_status
+      ) VALUES (?, ?, ?, ?, ?, 'PENDING')`,
         [bookingId, userId, amount, "INR", razorpayOrder.id]
       );
 

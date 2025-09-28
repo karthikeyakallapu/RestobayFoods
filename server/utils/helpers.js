@@ -65,3 +65,39 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
+
+// Business hours validation
+export const validateBusinessHours = (startTime, endTime) => {
+  const OPENING_HOUR = "09:00";
+  const CLOSING_HOUR = "22:00";
+  const MIN_BOOKING_DURATION = 1; // hours
+  const MAX_BOOKING_DURATION = 4; // hours
+
+  if (startTime < OPENING_HOUR || endTime > CLOSING_HOUR) {
+    return {
+      isValid: false,
+      message: `Booking must be within business hours (${OPENING_HOUR} - ${CLOSING_HOUR})`
+    };
+  }
+
+  // Calculate duration in hours
+  const start = new Date(`2000-01-01T${startTime}:00`);
+  const end = new Date(`2000-01-01T${endTime}:00`);
+  const durationHours = (end - start) / (1000 * 60 * 60);
+
+  if (durationHours < MIN_BOOKING_DURATION) {
+    return {
+      isValid: false,
+      message: `Minimum booking duration is ${MIN_BOOKING_DURATION} hour(s)`
+    };
+  }
+
+  if (durationHours > MAX_BOOKING_DURATION) {
+    return {
+      isValid: false,
+      message: `Maximum booking duration is ${MAX_BOOKING_DURATION} hours`
+    };
+  }
+
+  return { isValid: true };
+};
