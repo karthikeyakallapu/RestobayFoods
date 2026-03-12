@@ -11,8 +11,8 @@ const authenticateUser = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const [user] = await pool.query("SELECT * FROM users WHERE id =?", [
-      decoded.id
+    const [user] = await pool.query("SELECT * FROM USERS WHERE id =?", [
+      decoded.id,
     ]);
 
     if (!user[0]) {
@@ -36,8 +36,8 @@ const authenticateAdmin = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const [user] = await pool.query("SELECT * FROM users WHERE id =?", [
-      decoded.id
+    const [user] = await pool.query("SELECT * FROM USERS WHERE id =?", [
+      decoded.id,
     ]);
 
     if (!user[0]) {

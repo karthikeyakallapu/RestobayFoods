@@ -18,20 +18,20 @@ const Table = () => {
     startTime,
     endTime,
     getPrice,
-    error
+    error,
   } = useTableStore((state) => state);
 
   const handlePayment = () => {
     setIsPaymentProcessing(true);
     displayRazorpay(navigate, "table", {
       tableId: tableId,
-      bookingDate: date.format("MM-DD-YYYY"),
+      bookingDate: date.toISOString(),
       partySize,
       startTime: dayjs(startTime).format("HH:mm"),
-      endTime: dayjs(endTime).format("HH:mm")
+      endTime: dayjs(endTime).format("HH:mm"),
     });
     setIsPaymentProcessing(false);
-    useTableStore.getState().resetTable();  
+    useTableStore.getState().resetTable();
   };
 
   if (isLoading) {

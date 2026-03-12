@@ -7,30 +7,30 @@ class CartController {
       const { item_id } = req.body;
 
       // Check if the user has an existing cart
-      const [rows] = await pool.query("SELECT * FROM carts WHERE user_id = ?", [
-        userId
+      const [rows] = await pool.query("SELECT * FROM CARTS WHERE user_id = ?", [
+        userId,
       ]);
 
       let existingCart = rows[0];
 
       if (!existingCart) {
         const [result] = await pool.query(
-          "INSERT INTO carts (user_id) VALUES (?)",
-          [userId]
+          "INSERT INTO CARTS (user_id) VALUES (?)",
+          [userId],
         );
         existingCart = { id: result.insertId }; // Get the new cart ID
       }
 
       // Find if the item already exists in the cart
       const [cartItem] = await pool.query(
-        "SELECT * FROM cart_items WHERE cart_id = ? AND item_id = ?",
-        [existingCart.id, item_id]
+        "SELECT * FROM CART_ITEMS WHERE cart_id = ? AND item_id = ?",
+        [existingCart.id, item_id],
       );
 
       // Get the price of the item
       const [price_record] = await pool.query(
-        "SELECT price FROM menu WHERE id = ?",
-        [item_id]
+        "SELECT price FROM MENU WHERE id = ?",
+        [item_id],
       );
 
       if (!price_record.length) {
@@ -41,13 +41,13 @@ class CartController {
 
       if (cartItem.length === 0) {
         await pool.query(
-          "INSERT INTO cart_items (cart_id, item_id, quantity, price) VALUES (?, ?, ?, ?)",
-          [existingCart.id, item_id, 1, price]
+          "INSERT INTO CART_ITEMS (cart_id, item_id, quantity, price) VALUES (?, ?, ?, ?)",
+          [existingCart.id, item_id, 1, price],
         );
       } else {
         await pool.query(
-          "UPDATE cart_items SET quantity = quantity + 1 WHERE cart_id = ? AND item_id = ?",
-          [existingCart.id, item_id]
+          "UPDATE CART_ITEMS SET quantity = quantity + 1 WHERE cart_id = ? AND item_id = ?",
+          [existingCart.id, item_id],
         );
       }
       res.status(200).json({ message: "Item added to cart" });
@@ -60,8 +60,8 @@ class CartController {
     const userId = req.userId;
     const { item_id } = req.body;
 
-    const [rows] = await pool.query("SELECT * FROM carts WHERE user_id = ?", [
-      userId
+    const [rows] = await pool.query("SELECT * FROM CARTS WHERE user_id = ?", [
+      userId,
     ]);
 
     const existingCart = rows[0];
@@ -71,35 +71,36 @@ class CartController {
     }
 
     const [cartItem] = await pool.query(
-      "SELECT * FROM cart_items WHERE cart_id = ? AND item_id = ?",
-      [existingCart.id, item_id]
+      "SELECT * FROM CART_ITEMS WHERE cart_id = ? AND item_id = ?",
+      [existingCart.id, item_id],
     );
 
     if (cartItem.length == 0) {
       return res.status(400).json({ message: "Item not found in cart" });
     } else {
       await pool.query(
-        "UPDATE cart_items SET quantity = quantity - 1 WHERE cart_id = ? AND item_id = ?",
-        [existingCart.id, item_id]
+        "UPDATE CART_ITEMS SET quantity = quantity - 1 WHERE cart_id = ? AND item_id = ?",
+        [existingCart.id, item_id],
       );
 
       // Remove item if quantity becomes 0
       await pool.query(
-        "DELETE FROM cart_items WHERE cart_id = ? AND item_id = ? AND quantity <= 0",
-        [existingCart.id, item_id]
+        "DELETE FROM CART_ITEMS WHERE cart_id = ? AND item_id = ? AND quantity <= 0",
+        [existingCart.id, item_id],
       );
     }
 
-    return res.status(200).json({ message: "Cart updated succesfully" });
+    return res.status(200).json({ message: "Cart updated successfully" });
   }
   async getCart(req, res) {
     try {
       const userId = req.userId;
 
       // Fetch the user's cart
-      const [rows] = await pool.query("SELECT * FROM carts WHERE user_id = ?", [
-        userId
+      const [rows] = await pool.query("SELECT * FROM CARTS WHERE user_id = ?", [
+        userId,
       ]);
+
       const existingCart = rows[0];
 
       // If the cart does not exist, return an empty cart
@@ -118,16 +119,16 @@ class CartController {
           m.name, 
           m.image_url, 
           (ci.quantity * m.price) AS total_price
-        FROM cart_items ci
-        JOIN menu m ON ci.item_id = m.id
+        FROM CART_ITEMS ci
+        JOIN MENU m ON ci.item_id = m.id
         WHERE ci.cart_id = ?`,
-        [existingCart.id]
+        [existingCart.id],
       );
 
       // Calculate total price of the entire cart
       const totalPrice = cartItems.reduce(
         (sum, item) => sum + Number(item.total_price),
-        0
+        0,
       );
 
       res.status(200).json({ cart: cartItems, totalPrice });

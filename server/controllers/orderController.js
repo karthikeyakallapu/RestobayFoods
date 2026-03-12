@@ -9,137 +9,138 @@ class OrderController {
       await connection.beginTransaction();
       const userId = req.userId;
 
-      // Get the latest cart total & items
-      const [cart] = await connection.query(
-        `SELECT c.id as cart_id, SUM(ci.price * ci.quantity) AS total
-         FROM carts c
-         JOIN cart_items ci ON c.id = ci.cart_id
-         WHERE c.user_id = ?
-         GROUP BY c.id;`,
-        [userId]
+      // Lock cart
+      const [cartRows] = await connection.query(
+        `SELECT id
+       FROM CARTS
+       WHERE user_id = ?
+       FOR UPDATE`,
+        [userId],
       );
 
-      if (!cart.length) {
-        return res.status(404).json({ message: "Cart not found or empty" });
+      if (!cartRows.length) {
+        await connection.rollback();
+        return res.status(404).json({ message: "Cart not found" });
       }
 
-      const { cart_id, total } = cart[0];
+      const cartId = cartRows[0].id;
 
-      // Check for existing pending order
-      const [existingOrder] = await connection.query(
-        `SELECT id, transaction_id, total_amount FROM orders 
-         WHERE user_id = ? AND status = 'PAYMENT_PENDING' AND payment_status = 'PENDING' 
-         ORDER BY created_at DESC LIMIT 1;`,
-        [userId]
+      // Get cart items
+      const [cartItems] = await connection.query(
+        `SELECT item_id, price, quantity
+       FROM CART_ITEMS
+       WHERE cart_id = ?`,
+        [cartId],
       );
 
-      if (existingOrder.length) {
-        const { id: orderId, transaction_id, total_amount } = existingOrder[0];
+      if (!cartItems.length) {
+        await connection.rollback();
+        return res.status(400).json({ message: "Cart is empty" });
+      }
 
-        //  If cart total has changed, update the order amount
-        if (total !== total_amount) {
+      // Calculate total
+      const total = cartItems.reduce(
+        (sum, item) => sum + Number(item.price) * Number(item.quantity),
+        0,
+      );
+
+      // Check existing pending order
+      const [existingOrders] = await connection.query(
+        `SELECT id, transaction_id, total_amount
+       FROM ORDERS
+       WHERE user_id = ?
+       AND status = 'PAYMENT_PENDING'
+       AND payment_status = 'PENDING'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+        [userId],
+      );
+      let orderId;
+      let transactionId;
+
+      if (existingOrders.length) {
+        const existing = existingOrders[0];
+        orderId = existing.id;
+        transactionId = existing.transaction_id;
+
+        // Update amount if changed
+        if (Number(existing.total_amount) !== Number(total)) {
           await connection.query(
-            `UPDATE orders SET total_amount = ?, updated_at = NOW() WHERE id = ?;`,
-            [total, orderId]
+            `UPDATE ORDERS
+           SET total_amount = ?, updated_at = NOW()
+           WHERE id = ?`,
+            [total, orderId],
           );
         }
 
-        //   Check for new items in the cart
-        const [cartItems] = await connection.query(
-          `SELECT item_id, price, quantity FROM cart_items WHERE cart_id = ?;`,
-          [cart_id]
+        // Replace order items
+        await connection.query(`DELETE FROM ORDER_ITEMS WHERE order_id = ?`, [
+          orderId,
+        ]);
+
+        const orderItemsValues = cartItems.map((item) => [
+          orderId,
+          item.item_id,
+          item.price,
+          item.quantity,
+        ]);
+
+        await connection.query(
+          `INSERT INTO ORDER_ITEMS (order_id, item_id, price, quantity)
+         VALUES ?`,
+          [orderItemsValues],
         );
-
-        // Fetch already added items from `order_items`
-        const [existingOrderItems] = await connection.query(
-          `SELECT item_id FROM order_items WHERE order_id = ?;`,
-          [orderId]
-        );
-
-        const existingItemIds = new Set(
-          existingOrderItems.map((item) => item.item_id)
-        );
-
-        // Filter only new items that are not already in order_items
-        const newItems = cartItems.filter(
-          (item) => !existingItemIds.has(item.item_id)
-        );
-
-        if (newItems.length) {
-          const orderItemsValues = newItems.map((item) => [
-            orderId,
-            item.item_id,
-            item.price,
-            item.quantity
-          ]);
-
-          await connection.query(
-            `INSERT INTO order_items (order_id, item_id, price, quantity) VALUES ?;`,
-            [orderItemsValues]
-          );
-        }
-
-        await connection.commit();
-
-        return res.status(200).json({
-          success: true,
-          orderId: transaction_id,
-          amount: total * 100,
-          currency: "INR",
-          message: "Existing pending order updated with new items"
-        });
-      }
-
-      // Create Razorpay order
-      const razorpayOrder = await razorpayHelper.orders.create({
-        amount: Math.round(Number(total) * 100),
-        currency: "INR",
-        receipt: `order_rcpt_${userId}_${Date.now()}`
-      });
-
-      // Insert order into database with PAYMENT_PENDING status
-      const [orderResult] = await connection.query(
-        `INSERT INTO orders (
+      } else {
+        // Create order
+        const [orderResult] = await connection.query(
+          `INSERT INTO ORDERS (
           user_id,
           total_amount,
           status,
-          payment_status,
-          transaction_id
-        ) VALUES (?, ?, ?, ?, ?)`,
-        [userId, total, "PAYMENT_PENDING", "PENDING", razorpayOrder.id]
-      );
+          payment_status
+        )
+        VALUES (?, ?, 'PAYMENT_PENDING', 'PENDING')`,
+          [userId, total],
+        );
 
-      const orderId = orderResult.insertId;
+        orderId = orderResult.insertId;
 
-      // Get cart items and insert into order_items
-      const [cartItems] = await connection.query(
-        `SELECT item_id, price, quantity FROM cart_items WHERE cart_id = ?`,
-        [cart_id]
-      );
+        const orderItemsValues = cartItems.map((item) => [
+          orderId,
+          item.item_id,
+          item.price,
+          item.quantity,
+        ]);
 
-      // Assuming you have an order_items table
-      const orderItemsValues = cartItems.map((item) => [
-        orderId,
-        item.item_id,
-        item.price,
-        item.quantity
-      ]);
-
-      if (orderItemsValues.length) {
         await connection.query(
-          `INSERT INTO order_items (order_id, item_id, price, quantity)
-           VALUES ?`,
-          [orderItemsValues]
+          `INSERT INTO ORDER_ITEMS (order_id, item_id, price, quantity)
+         VALUES ?`,
+          [orderItemsValues],
         );
       }
 
       await connection.commit();
 
+      // Create Razorpay order AFTER transaction
+      const razorpayOrder = await razorpayHelper.orders.create({
+        amount: Math.round(total * 100),
+        currency: "INR",
+        receipt: `order_${orderId}_${Date.now()}`,
+      });
+
+      // Update transaction id
+      await pool.query(
+        `UPDATE ORDERS
+       SET transaction_id = ?
+       WHERE id = ?`,
+        [razorpayOrder.id, orderId],
+      );
+
       return res.status(200).json({
         success: true,
         orderId: razorpayOrder.id,
         amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency
+        currency: razorpayOrder.currency,
       });
     } catch (error) {
       await connection.rollback();
@@ -147,7 +148,8 @@ class OrderController {
       return res.status(500).json({
         success: false,
         message: "Failed to create order",
-        error: process.env.NODE_ENV === "production" ? undefined : error.message
+        error:
+          process.env.NODE_ENV === "production" ? undefined : error.message,
       });
     } finally {
       connection.release();
@@ -164,7 +166,7 @@ class OrderController {
         razorpayPaymentId,
         razorpayOrderId,
         razorpaySignature,
-        artifact
+        artifact,
       } = req.body;
 
       // Verify signature
@@ -177,7 +179,7 @@ class OrderController {
       if (generatedSignature !== razorpaySignature) {
         return res.status(400).json({
           status: "error",
-          message: "Payment verification failed"
+          message: "Payment verification failed",
         });
       }
 
@@ -185,23 +187,23 @@ class OrderController {
         // Find the table booking payment record
         const [paymentRecord] = await connection.query(
           `SELECT bp.id, bp.booking_id, bp.amount, bp.payment_status, tb.user_id 
-           FROM table_booking_payments bp
-           JOIN table_bookings tb ON bp.booking_id = tb.id
+           FROM TABLE_BOOKING_PAYMENTS bp
+           JOIN TABLE_BOOKINGS tb ON bp.booking_id = tb.id
            WHERE bp.transaction_id = ? AND tb.user_id = ?`,
-          [orderCreationId, userId]
+          [orderCreationId, userId],
         );
 
         if (!paymentRecord.length) {
           return res.status(404).json({
             status: "error",
-            message: "Table booking payment record not found"
+            message: "Table booking payment record not found",
           });
         }
 
         const {
           id: paymentId,
           booking_id: bookingId,
-          payment_status
+          payment_status,
         } = paymentRecord[0];
 
         // Check if payment is already processed
@@ -209,28 +211,26 @@ class OrderController {
           return res.status(200).json({
             status: "success",
             message: "Payment already verified and completed",
-            bookingId
+            bookingId,
           });
         }
 
         // Update payment details
         await connection.query(
-          `UPDATE table_booking_payments 
-           SET payment_status = 'COMPLETED', 
-               payment_method = 'razorpay',
-               payment_date = NOW(),
+          `UPDATE TABLE_BOOKING_PAYMENTS 
+           SET payment_status = 'SUCCESS', 
                booking_id = ?,
                updated_at = NOW() 
            WHERE id = ?`,
-          [bookingId, paymentId]
+          [bookingId, paymentId],
         );
 
         await connection.query(
-          `UPDATE table_bookings 
+          `UPDATE TABLE_BOOKINGS 
            SET status = 'CONFIRMED', 
            updated_at = NOW() 
            WHERE id = ?`,
-          [bookingId]
+          [bookingId],
         );
 
         await connection.commit();
@@ -240,21 +240,20 @@ class OrderController {
           message: "Table booking payment verified successfully",
           bookingId,
           paymentId: razorpayPaymentId,
-          artifact: "TABLE"
+          artifact: "TABLE",
         });
       }
 
       // Update order status
       const [updateResult] = await connection.query(
-        `UPDATE orders 
+        `UPDATE ORDERS 
          SET 
-           status = 'PROCESSING', 
-           payment_status = 'COMPLETED',
+           status = 'CONFIRMED', 
+           payment_status = 'SUCCESS',
            transaction_id = ?,
-           payment_completed_at = NOW(),
            updated_at = NOW()
          WHERE transaction_id = ?`,
-        [razorpayPaymentId, razorpayOrderId]
+        [razorpayPaymentId, razorpayOrderId],
       );
 
       // If no rows were updated, order not found
@@ -262,29 +261,29 @@ class OrderController {
         await connection.rollback();
         return res.status(404).json({
           status: "error",
-          message: "Order not found"
+          message: "Order not found",
         });
       }
 
       // Fetch the updated order ID
       const [orderRows] = await connection.query(
-        "SELECT id FROM orders WHERE transaction_id = ?",
-        [razorpayPaymentId]
+        "SELECT id FROM ORDERS WHERE transaction_id = ?",
+        [razorpayPaymentId],
       );
 
       if (!orderRows.length) {
         await connection.rollback();
         return res.status(404).json({
           success: false,
-          message: "Order not found after update"
+          message: "Order not found after update",
         });
       }
 
       // Delete cart items after successful payment
       await connection.query(
-        `DELETE FROM cart_items WHERE cart_id = (
-          SELECT id FROM carts WHERE user_id = ?)`,
-        [userId]
+        `DELETE FROM CART_ITEMS WHERE cart_id = (
+          SELECT id FROM CARTS WHERE user_id = ?)`,
+        [userId],
       );
 
       const orderId = orderRows[0].id;
@@ -294,7 +293,7 @@ class OrderController {
       return res.status(200).json({
         status: "success",
         message: "Payment verified successfully",
-        orderId: orderId
+        orderId: orderId,
       });
     } catch (error) {
       await connection.rollback();
@@ -302,7 +301,8 @@ class OrderController {
       return res.status(500).json({
         success: false,
         message: "Failed to verify payment",
-        error: process.env.NODE_ENV === "production" ? undefined : error.message
+        error:
+          process.env.NODE_ENV === "production" ? undefined : error.message,
       });
     } finally {
       connection.release();
@@ -325,13 +325,13 @@ class OrderController {
       const [orderCheck] = await connection.query(
         `SELECT status, payment_status FROM orders 
          WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
-        [orderId, userId]
+        [orderId, userId],
       );
 
       if (!orderCheck.length) {
         return res.status(404).json({
           success: false,
-          message: "Order not found"
+          message: "Order not found",
         });
       }
 
@@ -343,14 +343,14 @@ class OrderController {
       if (!cancellableStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Cannot cancel an order with status: ${status}`
+          message: `Cannot cancel an order with status: ${status}`,
         });
       }
 
       // Update order status
       await connection.query(
         `UPDATE orders SET status = 'CANCELLED', updated_at = NOW() WHERE id = ?`,
-        [orderId]
+        [orderId],
       );
 
       // If payment was completed, initiate refund through Razorpay
@@ -359,7 +359,7 @@ class OrderController {
         // For now, just update the status
         await connection.query(
           `UPDATE orders SET payment_status = 'REFUNDED' WHERE id = ?`,
-          [orderId]
+          [orderId],
         );
       }
 
@@ -367,7 +367,7 @@ class OrderController {
 
       return res.status(200).json({
         success: true,
-        message: "Order cancelled successfully"
+        message: "Order cancelled successfully",
       });
     } catch (error) {
       await connection.rollback();
@@ -375,7 +375,8 @@ class OrderController {
       return res.status(500).json({
         success: false,
         message: "Failed to cancel order",
-        error: process.env.NODE_ENV === "production" ? undefined : error.message
+        error:
+          process.env.NODE_ENV === "production" ? undefined : error.message,
       });
     } finally {
       connection.release();
@@ -403,25 +404,26 @@ class OrderController {
                'quantity', oi.quantity
              )
            ) AS items
-         FROM orders o
-         LEFT JOIN order_items oi ON o.id = oi.order_id
-         LEFT JOIN menu m ON oi.item_id = m.id -- Join menu table to get item name
-         WHERE o.user_id = ? AND o.deleted_at IS NULL
+         FROM ORDERS o
+         LEFT JOIN ORDER_ITEMS oi ON o.id = oi.order_id
+         LEFT JOIN MENU m ON oi.item_id = m.id -- Join menu table to get item name
+         WHERE o.user_id = ?  
          GROUP BY o.id
          ORDER BY o.created_at DESC`,
-        [userId]
+        [userId],
       );
 
       return res.status(200).json({
         success: true,
-        orders
+        orders,
       });
     } catch (error) {
       console.error("Error retrieving orders:", error);
       return res.status(500).json({
         success: false,
         message: "Failed to retrieve orders",
-        error: process.env.NODE_ENV === "production" ? undefined : error.message
+        error:
+          process.env.NODE_ENV === "production" ? undefined : error.message,
       });
     }
   }
@@ -449,26 +451,27 @@ class OrderController {
          LEFT JOIN order_items oi ON o.id = oi.order_id
          WHERE o.id = ? AND o.user_id = ? AND o.deleted_at IS NULL
          GROUP BY o.id`,
-        [orderId, userId]
+        [orderId, userId],
       );
 
       if (!orderResults.length) {
         return res.status(404).json({
           success: false,
-          message: "Order not found"
+          message: "Order not found",
         });
       }
 
       return res.status(200).json({
         success: true,
-        order: orderResults[0]
+        order: orderResults[0],
       });
     } catch (error) {
       console.error("Error retrieving order:", error);
       return res.status(500).json({
         success: false,
         message: "Failed to retrieve order",
-        error: process.env.NODE_ENV === "production" ? undefined : error.message
+        error:
+          process.env.NODE_ENV === "production" ? undefined : error.message,
       });
     }
   }

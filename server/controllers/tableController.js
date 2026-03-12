@@ -1,16 +1,17 @@
 import { pool } from "../config/database.js";
 import { razorpayHelper, getTablePrice } from "../utils/helpers.js";
 import dayjs from "dayjs";
-class TableContoller {
+class TableController {
   async checkTableAvailability(req, res) {
     try {
       const { bookingDate, startTime, endTime, partySize } = req.body;
       const now = dayjs();
+
       if (!bookingDate || !partySize || !startTime || !endTime) {
         return res.status(400).json({
           type: "error",
           message:
-            "Missing required parameters: date, partySize, startTime, endTime"
+            "Missing required parameters: date, partySize, startTime, endTime",
         });
       }
 
@@ -18,7 +19,7 @@ class TableContoller {
       if (bookingDay.isBefore(now, "day")) {
         return res.status(400).json({
           type: "error",
-          message: "Cannot book a table for a past date"
+          message: "Cannot book a table for a past date",
         });
       }
 
@@ -27,7 +28,7 @@ class TableContoller {
       if (start.isAfter(end)) {
         return res.status(400).json({
           type: "error",
-          message: "Start time must be before end time"
+          message: "Start time must be before end time",
         });
       }
 
@@ -35,59 +36,49 @@ class TableContoller {
       if (bookingDay.isSame(now, "day")) {
         const startDateTime = dayjs(
           `${now.format("YYYY-MM-DD")} ${startTime}`,
-          "YYYY-MM-DD HH:mm"
+          "YYYY-MM-DD HH:mm",
         );
         if (startDateTime.isBefore(now)) {
           return res.status(400).json({
             type: "error",
-            message: "Start time must be later than the current time"
+            message: "Start time must be later than the current time",
           });
         }
       }
 
-      // Query to find available tables
       const query = `
-        SELECT t.id, t.table_number, t.capacity, t.location
-        FROM tables t
-        WHERE t.status = 'active'
-        AND t.capacity >= ?
-        AND t.id NOT IN (
-          SELECT b.table_id 
-          FROM table_bookings b 
-          WHERE b.booking_date = ?
-          AND b.status = 'confirmed'
-          AND (
-            (b.start_time <= ? AND b.end_time > ?) OR
-            (b.start_time < ? AND b.end_time >= ?) OR
-            (b.start_time >= ? AND b.end_time <= ?) OR
-            (b.start_time <= ? AND b.end_time >= ?)
-          )
-        )
-        ORDER BY t.capacity ASC;
+      SELECT t.id, t.table_number, t.capacity, t.location
+      FROM TABLES t
+      WHERE t.status = 'active'
+      AND t.capacity >= ?
+      AND NOT EXISTS (
+          SELECT 1
+          FROM TABLE_BOOKINGS b
+          WHERE b.table_id = t.id
+          AND b.booking_date = ?
+          AND b.status IN ('PENDING','CONFIRMED')
+          AND b.start_time < ?
+          AND b.end_time > ?
+      )
+      ORDER BY t.capacity ASC
       `;
 
       const [tables] = await pool.execute(query, [
         parseInt(partySize),
         bookingDate,
-        startTime,
-        startTime, // Case 1
         endTime,
-        endTime, // Case 2
         startTime,
-        endTime, // Case 3
-        startTime,
-        endTime // Case 4
       ]);
 
       return res.status(200).json({
         type: "success",
-        tables
+        tables,
       });
     } catch (error) {
       console.error("Error checking table availability:", error);
       res.status(500).json({
         type: "error",
-        message: "Internal server error"
+        message: "Internal server error",
       });
     }
   }
@@ -96,6 +87,7 @@ class TableContoller {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
+
       const userId = req.userId;
 
       const { tableId, bookingDate, startTime, endTime, partySize } = req.body;
@@ -106,31 +98,29 @@ class TableContoller {
       if (dayjs(formattedDate).isBefore(dayjs(), "day")) {
         return res.status(400).json({
           type: "error",
-          message: "Cannot book a table for a past date"
+          message: "Cannot book a table for a past date",
         });
       }
 
       const amount = getTablePrice(formattedDate, startTime, endTime);
 
       // Check if the table exists and is active
-      const [
-        tableCheck
-      ] = await connection.query(
-        `SELECT id,table_number, capacity, status FROM tables WHERE id = ?`,
-        [tableId]
+      const [tableCheck] = await connection.query(
+        `SELECT id,table_number, capacity, status FROM TABLES WHERE id = ?`,
+        [tableId],
       );
 
       if (!tableCheck.length) {
         return res.status(404).json({
           type: "error",
-          message: "Table not found"
+          message: "Table not found",
         });
       }
 
-      if (tableCheck[0].status !== "active") {
+      if (tableCheck[0].status !== "ACTIVE") {
         return res.status(400).json({
           type: "error",
-          message: "Selected table is not available for booking"
+          message: "Selected table is not available for booking",
         });
       }
 
@@ -138,50 +128,51 @@ class TableContoller {
       if (partySize > tableCheck[0].capacity) {
         return res.status(400).json({
           type: "error",
-          message: `This table can only accommodate ${tableCheck[0]
-            .capacity} people`
+          message: `This table can only accommodate ${
+            tableCheck[0].capacity
+          } people`,
         });
       }
 
       // Check if the table is available for the requested time slot
-      const [
-        existingBookings
-      ] = await connection.query(
-        `SELECT id FROM table_bookings
-         WHERE table_id = ?
-         AND booking_date = ?
-         AND status = 'confirmed'
-         AND (
-           (start_time <= ? AND end_time > ?) OR
-           (start_time < ? AND end_time >= ?) OR
-           (start_time >= ? AND end_time <= ?)
-         )`,
-        [
-          tableId,
-          formattedDate,
-          startTime,
-          startTime,
-          endTime,
-          endTime,
-          startTime,
-          endTime
-        ]
-      );
+      const query = `
+      SELECT t.id, t.table_number, t.capacity, t.location
+      FROM TABLES t
+      WHERE t.status = 'ACTIVE'
+      AND t.capacity >= ?
+      AND   EXISTS (
+          SELECT 1
+          FROM TABLE_BOOKINGS b
+          WHERE b.table_id = t.id
+          AND b.booking_date = ?
+          AND b.status IN ('PENDING','CONFIRMED')
+          AND b.start_time < ?
+          AND b.end_time > ?
+      )
+      ORDER BY t.capacity ASC
+      `;
+
+      const [existingBookings] = await pool.execute(query, [
+        parseInt(partySize),
+        formattedDate,
+        endTime,
+        startTime,
+      ]);
+
+      console.log(existingBookings);
 
       if (existingBookings.length) {
         return res.status(409).json({
           success: false,
-          message: "The table is not available for the selected time slot"
+          message: "The table is not available for the selected time slot",
         });
       }
 
       // Check for existing pending booking with payment
-      const [
-        existingBooking
-      ] = await connection.query(
+      const [existingBooking] = await connection.query(
         `SELECT b.id, p.transaction_id, p.amount
-         FROM table_bookings b
-         JOIN table_booking_payments p ON b.id = p.booking_id
+         FROM TABLE_BOOKINGS b
+         JOIN TABLE_BOOKING_PAYMENTS p ON b.id = p.booking_id
          WHERE b.user_id = ?
          AND b.table_id = ?
          AND b.booking_date = ?
@@ -190,22 +181,22 @@ class TableContoller {
          AND p.payment_status = 'PENDING'
          ORDER BY b.created_at DESC
          LIMIT 1;`,
-        [userId, tableId, formattedDate, startTime, endTime]
+        [userId, tableId, formattedDate, startTime, endTime],
       );
 
       if (existingBooking.length) {
         const {
           id: bookingId,
           transaction_id,
-          amount: existingAmount
+          amount: existingAmount,
         } = existingBooking[0];
 
         // If amount has changed, update the payment amount
         if (Number(amount) !== Number(existingAmount)) {
           await connection.query(
-            `UPDATE table_booking_payments SET amount = ?, updated_at = NOW()
+            `UPDATE TABLE_BOOKING_PAYMENTS SET amount = ?, updated_at = NOW()
              WHERE booking_id = ? AND payment_status = 'PENDING';`,
-            [amount, bookingId]
+            [amount, bookingId],
           );
         }
 
@@ -217,33 +208,22 @@ class TableContoller {
           orderId: transaction_id,
           amount: Number(amount) * 100,
           currency: "INR",
-          message: "Existing pending booking payment"
+          message: "Existing pending booking payment",
         });
       }
 
       // Create new booking
-      const [
-        bookingResult
-      ] = await connection.query(
-        `INSERT INTO table_bookings (
+      const [bookingResult] = await connection.query(
+        `INSERT INTO TABLE_BOOKINGS (
                 table_id,
-                table_number,
                 booking_date,
                 start_time,
                 end_time,
                 number_of_people,
                 user_id,
                 status
-              ) VALUES (?, ?, ?, ?, ?, ?, ?,'PENDING')`,
-        [
-          tableId,
-          tableCheck[0].table_number,
-          formattedDate,
-          startTime,
-          endTime,
-          partySize,
-          userId
-        ]
+              ) VALUES (?, ?, ?, ?, ?, ?,'PENDING')`,
+        [tableId, formattedDate, startTime, endTime, partySize, userId],
       );
 
       const bookingId = bookingResult.insertId;
@@ -252,20 +232,18 @@ class TableContoller {
       const razorpayOrder = await razorpayHelper.orders.create({
         amount: Math.round(Number(amount) * 100),
         currency: "INR",
-        receipt: `table_booking_rcpt_${bookingId}_${Date.now()}`
+        receipt: `table_booking_rcpt_${bookingId}_${Date.now()}`,
       });
 
-      // Create payment record
       await connection.query(
-        `INSERT INTO table_booking_payments (
+        `INSERT INTO TABLE_BOOKING_PAYMENTS (
           booking_id,
           user_id,
           amount,
-          currency,
           transaction_id,
           payment_status
-        ) VALUES (?, ?, ?, ?, ?, 'PENDING')`,
-        [bookingId, userId, amount, "INR", razorpayOrder.id]
+        ) VALUES (?, ?, ?, ?, 'PENDING')`,
+        [bookingId, userId, amount, razorpayOrder.id],
       );
 
       await connection.commit();
@@ -276,7 +254,7 @@ class TableContoller {
         bookingId,
         orderId: razorpayOrder.id,
         amount: razorpayOrder.amount,
-        artifact: "TABLE"
+        artifact: "TABLE",
       });
     } catch (error) {
       await connection.rollback();
@@ -284,7 +262,8 @@ class TableContoller {
       return res.status(500).json({
         type: "error",
         message: "Failed to book table",
-        error: process.env.NODE_ENV === "production" ? undefined : error.message
+        error:
+          process.env.NODE_ENV === "production" ? undefined : error.message,
       });
     } finally {
       connection.release();
@@ -300,52 +279,49 @@ class TableContoller {
         SELECT 
           tb.id, 
           tb.table_id, 
-          tb.table_number,
           tb.booking_date, 
           tb.start_time, 
           tb.end_time, 
           tb.number_of_people, 
           tb.status, 
           tb.updated_at,
-          tbp.amount,
-          tbp.currency,
+          tbp.amount,         
           tbp.transaction_id,
           tbp.payment_status,
-          tbp.payment_method,
-          tbp.payment_date
+          tbp.updated_at
         FROM 
-          table_bookings tb
+          TABLE_BOOKINGS tb
         LEFT JOIN 
-          table_booking_payments tbp ON tb.id = tbp.booking_id
+          TABLE_BOOKING_PAYMENTS tbp ON tb.id = tbp.booking_id
         WHERE 
           tb.user_id = ?
         ORDER BY 
           tb.updated_at DESC, tb.start_time ASC
       `,
-        [userId]
+        [userId],
       );
 
       if (!bookings.length) {
         return res.status(404).json({
           type: "error",
-          message: "No bookings found for this user"
+          message: "No bookings found for this user",
         });
       }
 
       return res.status(200).json({
         type: "success",
-        bookings: bookings[0]
+        bookings: bookings[0],
       });
     } catch (error) {
       console.error("Error in getTableBookings:", error);
       return res.status(500).json({
         type: "error",
         message: "Failed to retrieve table bookings",
-        error: error.message
+        error: error.message,
       });
     }
   }
 }
 
-const tableController = new TableContoller();
+const tableController = new TableController();
 export default tableController;
