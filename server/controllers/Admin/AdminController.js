@@ -8,8 +8,8 @@ class AdminController {
       const [rows] = await pool.query(`
         SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.updated_at,
                u.name as user_name, u.phone as phone_number
-        FROM orders o
-        JOIN users u ON o.user_id = u.id
+        FROM ORDERS o
+        JOIN USERS u ON o.user_id = u.id
         ORDER BY o.created_at DESC
       `);
       return res.status(200).json({ orders: rows });
@@ -24,10 +24,11 @@ class AdminController {
   async getAllTableBookings(req, res) {
     try {
       const [rows] = await pool.query(`
-        SELECT tb.table_number, tb.user_id, tb.booking_date, tb.start_time, tb.end_time, tb.status,
+        SELECT  t.table_number, tb.user_id, tb.booking_date, tb.start_time, tb.end_time, tb.status,
                u.name as user_name, u.phone as phone_number
-        FROM table_bookings tb
-        JOIN users u ON tb.user_id = u.id
+        FROM TABLE_BOOKINGS tb
+        JOIN USERS u ON tb.user_id = u.id
+        JOIN TABLES t ON tb.table_id = t.id
         ORDER BY tb.booking_date DESC, tb.start_time DESC
       `);
       return res.status(200).json({ bookings: rows });
@@ -44,7 +45,7 @@ class AdminController {
     try {
       const [rows] = await pool.query(`
         SELECT name, email, phone
-        FROM users
+        FROM USERS
         WHERE role = 'admin' OR role = 'staff'
       `);
       return res.status(200).json({ users: rows });
@@ -64,7 +65,7 @@ class AdminController {
       switch (action) {
         case "ENABLE":
           await pool.query(
-            "UPDATE menu SET available = 1 WHERE id = ?",
+            "UPDATE MENU SET available = 1 WHERE id = ?",
             payload.item_id
           );
           return res
@@ -73,7 +74,7 @@ class AdminController {
 
         case "DISABLE":
           await pool.query(
-            "UPDATE menu SET available = 0 WHERE id = ?",
+            "UPDATE MENU SET available = 0 WHERE id = ?",
             payload.item_id
           );
           return res
@@ -82,7 +83,7 @@ class AdminController {
 
         case "DELETE":
           try {
-            await pool.query("DELETE FROM menu WHERE id = ?", payload.item_id);
+            await pool.query("DELETE FROM MENU WHERE id = ?", payload.item_id);
             // Also delete the image from Vercel Blob
             await del(`resto-menu/${payload.imageUrl}`);
             return res
@@ -108,7 +109,7 @@ class AdminController {
 
           const [
             existingItem
-          ] = await pool.query("SELECT * FROM menu WHERE name = ?", [name]);
+          ] = await pool.query("SELECT * FROM MENU WHERE name = ?", [name]);
 
           if (existingItem.length > 0) {
             return res.status(400).json({
@@ -118,7 +119,7 @@ class AdminController {
           }
 
           await pool.query(
-            "INSERT INTO menu (name, description, price, category, image_url) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO MENU (name, description, price, category, image_url) VALUES (?, ?, ?, ?, ?)",
             [name, description, price, category, imageUrl]
           );
 
@@ -168,7 +169,7 @@ class AdminController {
           }
 
           queryValues.push(payload.id);
-          const queryString = `UPDATE menu SET ${updateFields.join(
+          const queryString = `UPDATE MENU SET ${updateFields.join(
             ", "
           )} WHERE id = ?`;
 
@@ -234,7 +235,7 @@ class AdminController {
 
       switch (component) {
         case "order":
-          await pool.query("UPDATE orders SET status = ? WHERE id = ?", [
+          await pool.query("UPDATE ORDERS SET status = ? WHERE id = ?", [
             newStatus,
             orderId
           ]);
@@ -244,7 +245,7 @@ class AdminController {
           });
         case "table_booking":
           await pool.query(
-            "UPDATE table_bookings SET status = ? WHERE id = ?",
+            "UPDATE TABLE_BOOKINGS SET status = ? WHERE id = ?",
             [newStatus, orderId]
           );
           return res.status(200).json({
