@@ -13,22 +13,24 @@ const combineDateTime = (date, time) => {
 const useTableStore = create((set, get) => {
   const now = dayjs();
 
-  return {
+  // Define initial state for reset function
+  const getInitialState = () => ({
     selectedTable: null,
     tableId: null,
     isLoading: false,
     searchInitiated: false,
-
-    date: now, // booking date
+    date: now,
     partySize: 2,
-
-    startTime: now.add(1, "minute"), // default start time
-    endTime: now.add(1, "hour"), // default end time
-
+    startTime: now.add(1, "minute"),
+    endTime: now.add(1, "hour"),
     availableTables: [],
     isLoaded: false,
     error: null,
     price: 0,
+  });
+
+  return {
+    ...getInitialState(),
 
     // SETTERS
     setDate: (date) => set({ date }),
@@ -42,6 +44,12 @@ const useTableStore = create((set, get) => {
     setSearchInitiated: (searchInitiated) => set({ searchInitiated }),
     setTableId: (tableId) => set({ tableId }),
     setSelectedTable: (selectedTable) => set({ selectedTable }),
+
+    // RESET FUNCTION
+    resetTable: () => {
+      const initialState = getInitialState();
+      set(initialState);
+    },
 
     // COMPUTED
     getEndTime: () => {

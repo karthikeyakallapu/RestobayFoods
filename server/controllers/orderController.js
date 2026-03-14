@@ -1,5 +1,6 @@
 import { pool } from "../config/database.js";
 import { razorpayHelper } from "../utils/helpers.js";
+import { getSuccessPaymentStatus } from "../utils/paymentStatusResolver.js";
 import crypto from "crypto";
 
 class OrderController {
@@ -56,12 +57,10 @@ class OrderController {
         [userId],
       );
       let orderId;
-      let transactionId;
 
       if (existingOrders.length) {
         const existing = existingOrders[0];
         orderId = existing.id;
-        transactionId = existing.transaction_id;
 
         // Update amount if changed
         if (Number(existing.total_amount) !== Number(total)) {
@@ -177,6 +176,7 @@ class OrderController {
         .digest("hex");
 
       if (generatedSignature !== razorpaySignature) {
+        await connection.rollback();
         return res.status(400).json({
           status: "error",
           message: "Payment verification failed",
@@ -184,6 +184,10 @@ class OrderController {
       }
 
       if (artifact === "TABLE") {
+        const bookingSuccessStatus = await getSuccessPaymentStatus(
+          "TABLE_BOOKING_PAYMENTS",
+        );
+
         // Find the table booking payment record
         const [paymentRecord] = await connection.query(
           `SELECT bp.id, bp.booking_id, bp.amount, bp.payment_status, tb.user_id 
@@ -194,6 +198,7 @@ class OrderController {
         );
 
         if (!paymentRecord.length) {
+          await connection.rollback();
           return res.status(404).json({
             status: "error",
             message: "Table booking payment record not found",
@@ -207,7 +212,8 @@ class OrderController {
         } = paymentRecord[0];
 
         // Check if payment is already processed
-        if (payment_status === "COMPLETED") {
+        if (["SUCCESS", "COMPLETED"].includes(payment_status)) {
+          await connection.rollback();
           return res.status(200).json({
             status: "success",
             message: "Payment already verified and completed",
@@ -218,11 +224,10 @@ class OrderController {
         // Update payment details
         await connection.query(
           `UPDATE TABLE_BOOKING_PAYMENTS 
-           SET payment_status = 'SUCCESS', 
-               booking_id = ?,
+           SET payment_status = ?, 
                updated_at = NOW() 
            WHERE id = ?`,
-          [bookingId, paymentId],
+          [bookingSuccessStatus, paymentId],
         );
 
         await connection.query(
@@ -244,24 +249,46 @@ class OrderController {
         });
       }
 
+      const orderSuccessStatus = await getSuccessPaymentStatus("ORDERS");
+
       // Update order status
       const [updateResult] = await connection.query(
         `UPDATE ORDERS 
          SET 
            status = 'CONFIRMED', 
-           payment_status = 'SUCCESS',
+           payment_status = ?,
            transaction_id = ?,
            updated_at = NOW()
-         WHERE transaction_id = ?`,
-        [razorpayPaymentId, razorpayOrderId],
+         WHERE transaction_id = ?
+           AND payment_status = 'PENDING'`,
+        [orderSuccessStatus, razorpayPaymentId, razorpayOrderId],
       );
 
-      // If no rows were updated, order not found
+      // If no rows were updated, order may already be processed or not found
       if (updateResult.affectedRows === 0) {
-        await connection.rollback();
-        return res.status(404).json({
-          status: "error",
-          message: "Order not found",
+        const [alreadyProcessed] = await connection.query(
+          `SELECT id
+           FROM ORDERS
+           WHERE transaction_id IN (?, ?)
+             AND status = 'CONFIRMED'
+             AND payment_status = ?
+           LIMIT 1`,
+          [razorpayOrderId, razorpayPaymentId, orderSuccessStatus],
+        );
+
+        if (!alreadyProcessed.length) {
+          await connection.rollback();
+          return res.status(404).json({
+            status: "error",
+            message: "Order not found",
+          });
+        }
+
+        await connection.commit();
+        return res.status(200).json({
+          status: "success",
+          message: "Payment already verified successfully",
+          orderId: alreadyProcessed[0].id,
         });
       }
 
@@ -329,6 +356,7 @@ class OrderController {
       );
 
       if (!orderCheck.length) {
+        await connection.rollback();
         return res.status(404).json({
           success: false,
           message: "Order not found",
@@ -341,6 +369,7 @@ class OrderController {
       const cancellableStatuses = ["PENDING", "PAYMENT_PENDING", "PROCESSING"];
 
       if (!cancellableStatuses.includes(status)) {
+        await connection.rollback();
         return res.status(400).json({
           success: false,
           message: `Cannot cancel an order with status: ${status}`,
@@ -354,7 +383,7 @@ class OrderController {
       );
 
       // If payment was completed, initiate refund through Razorpay
-      if (payment_status === "COMPLETED") {
+      if (["COMPLETED", "SUCCESS"].includes(payment_status)) {
         // You would implement Razorpay refund logic here
         // For now, just update the status
         await connection.query(

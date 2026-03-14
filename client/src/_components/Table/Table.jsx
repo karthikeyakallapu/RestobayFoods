@@ -1,9 +1,19 @@
 import { useState } from "react";
 import useTableStore from "../../store/use-table";
+import useModalStore from "../../store/use-modal";
 import TableRestaurantIcon from "@mui/icons-material/TableRestaurant";
 import dayjs from "dayjs";
 import { displayRazorpay } from "../Pay/Razorpay";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  Calendar,
+  Clock,
+  Users,
+  IndianRupee,
+  AlertCircle,
+  Info,
+  X, } from "lucide-react";
 
 const Table = () => {
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
@@ -19,130 +29,247 @@ const Table = () => {
     endTime,
     getPrice,
     error,
-  } = useTableStore((state) => state);
+    resetTable,
+  } = useTableStore();
 
-  const handlePayment = () => {
+  const { closeModal } = useModalStore();
+
+  const handlePayment = async () => {
     setIsPaymentProcessing(true);
-    displayRazorpay(navigate, "table", {
-      tableId: tableId,
-      bookingDate: date.toISOString(),
-      partySize,
-      startTime: dayjs(startTime).format("HH:mm"),
-      endTime: dayjs(endTime).format("HH:mm"),
-    });
-    setIsPaymentProcessing(false);
-    useTableStore.getState().resetTable();
+    try {
+      if (!tableId || !date || !partySize || !startTime || !endTime) {
+        throw new Error("Missing required booking information");
+      }
+
+      const orderData = {
+        tableId: tableId,
+        bookingDate: dayjs(date).format("YYYY-MM-DD"),
+        partySize: Number(partySize),
+        startTime: dayjs(startTime).format("HH:mm"),
+        endTime: dayjs(endTime).format("HH:mm"),
+        amount: getPrice(),
+      };
+
+      const success = await displayRazorpay(navigate, "table", orderData);
+
+      if (success && resetTable) {
+        resetTable();
+        closeModal();
+        navigate("/bookings/table");
+      }
+    } catch (error) {
+      console.error("Payment failed:", error);
+    } finally {
+      setIsPaymentProcessing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (resetTable) {
+      resetTable();
+    }
+    closeModal();
+    navigate("/table");
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96 w-full">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin h-12 w-12 border-4 border-t-transparent border-[#ef5644] rounded-full"></div>
-          <p className="text-lg font-medium text-gray-600">
-            Loading reservation details...
-          </p>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center h-full w-full p-4"
+      >
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="animate-spin h-16 w-16 border-4 border-t-transparent border-[#ef5644] rounded-full"></div>
+            <TableRestaurantIcon
+              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#ef5644]"
+              sx={{ height: "1.5rem", width: "1.5rem" }}
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-medium text-gray-700">
+              Loading reservation details...
+            </p>
+          </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-96 w-full">
-        <div className="bg-red-50 p-6 rounded-lg border border-red-200 text-center max-w-md">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-red-700 mb-2">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-center h-full w-full p-4"
+      >
+        <div className="bg-red-50 p-8 rounded-xl border border-red-200 text-center max-w-md shadow-lg relative">
+          <button
+            onClick={handleCancel}
+            className="absolute top-4 right-4 p-1 bg-red-100 rounded-full hover:bg-red-200 transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} className="text-red-600" />
+          </button>
+
+          <div className="bg-red-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={40} className="text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-red-700 mb-3">
             Reservation Error
           </h2>
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-red-600 mb-6">{error}</p>
           <button
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            onClick={() => window.location.reload()}
+            className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            onClick={handleCancel}
           >
-            Try Again
+            Go Back
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (!selectedTable) {
     return (
-      <div className="flex items-center justify-center h-96 w-full">
-        <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200 text-center max-w-md">
-          <div className="text-yellow-500 text-4xl mb-4">ℹ️</div>
-          <h2 className="text-xl font-bold text-yellow-700 mb-2">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-center h-full w-full p-4"
+      >
+        <div className="bg-amber-50 p-8 rounded-xl border border-amber-200 text-center max-w-md shadow-lg relative">
+          <button
+            onClick={handleCancel}
+            className="absolute top-4 right-4 p-1 bg-amber-100 rounded-full hover:bg-amber-200 transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} className="text-amber-600" />
+          </button>
+
+          <div className="bg-amber-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+            <Info size={40} className="text-amber-600" />
+          </div>
+          <h2 className="text-xl font-bold text-amber-700 mb-3">
             No Table Selected
           </h2>
-          <p className="text-yellow-600 mb-4">
+          <p className="text-amber-600 mb-6">
             Please select a table to continue with your reservation.
           </p>
+          <button
+            className="px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+            onClick={() => {
+              closeModal();
+              navigate("/table");
+            }}
+          >
+            Browse Tables
+          </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 w-[50vw] max-w-md mx-auto ">
-      <div className="flex flex-col items-center ">
-        <div className="bg-red-50 p-4 rounded-full mb-4">
-          <TableRestaurantIcon
-            sx={{ color: "#ef5644", height: "3rem", width: "3rem" }}
-          />
-        </div>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="h-full w-full flex items-center justify-center  bg-gradient-to-br from-gray-50 to-gray-100"
+    >
+    
 
-        <h1 className="text-3xl font-bold text-[#3f3f3f] anton tracking-wider mb-6">
-          {selectedTable}
-        </h1>
-
-        <div className="space-y-4 mb-6">
-          <div className="flex justify-between items-center border-b pb-2">
-            <h2 className="font-medium text-gray-600">Date</h2>
-            <p className="font-semibold">{dayjs(date).format("MMM D, YYYY")}</p>
-          </div>
-
-          <div className="flex justify-between items-center border-b pb-2">
-            <h2 className="font-medium text-gray-600">Time </h2>
-            <p className="ml-8 font-semibold">
-              {dayjs(startTime).format("h:mm A")} -{" "}
-              {dayjs(endTime).format("h:mm A")}
-            </p>
-          </div>
-
-          <div className="flex justify-between items-center border-b pb-2">
-            <h2 className="font-medium text-gray-600">Party Size</h2>
-            <p className="font-semibold">
-              {partySize} {partySize === 1 ? "person" : "people"}
-            </p>
-          </div>
-
-          <div className="flex justify-between items-center pt-2">
-            <h2 className="font-bold text-lg text-gray-800">Total</h2>
-            <p className="font-bold text-lg text-[#ef5644]">Rs.{getPrice()}</p>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="bg-gradient-to-r from-[#ef5644] to-[#d04a3b] px-6 py-8 text-white">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-white/80 text-sm font-medium">
+                Table Reservation
+              </p>
+              <h1 className="text-3xl font-bold mt-1">{selectedTable}</h1>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <TableRestaurantIcon sx={{ height: "2rem", width: "2rem" }} />
+            </div>
           </div>
         </div>
 
-        <button
-          className={`w-full py-2 rounded-md text-white font-medium transition-all ${
-            isPaymentProcessing
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#ef5644] hover:bg-[#d04a3b] active:transform active:scale-95"
-          }`}
-          onClick={handlePayment}
-          disabled={isPaymentProcessing}
-        >
-          {isPaymentProcessing ? (
-            <span className="flex items-center justify-center">
-              <span className="animate-spin h-5 w-5 mr-2 border-2 border-t-transparent border-white rounded-full"></span>
-              Processing...
-            </span>
-          ) : (
-            "Complete Reservation"
-          )}
-        </button>
+        <div className="p-6 space-y-4">
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <Calendar size={20} className="text-[#ef5644]" />
+              <span className="text-gray-600 flex-1">Date</span>
+              <span className="font-semibold text-gray-900">
+                {dayjs(date).format("MMMM D, YYYY")}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Clock size={20} className="text-[#ef5644]" />
+              <span className="text-gray-600 flex-1">Time</span>
+              <span className="font-semibold text-gray-900">
+                {dayjs(startTime).format("h:mm A")} -{" "}
+                {dayjs(endTime).format("h:mm A")}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Users size={20} className="text-[#ef5644]" />
+              <span className="text-gray-600 flex-1">Party Size</span>
+              <span className="font-semibold text-gray-900">
+                {partySize} {partySize === 1 ? "person" : "people"}
+              </span>
+            </div>
+
+            <div className="h-px bg-gray-200 my-2"></div>
+
+            <div className="flex items-center gap-3">
+              <IndianRupee size={20} className="text-[#ef5644]" />
+              <span className="text-gray-600 flex-1">Total Amount</span>
+              <span className="font-bold text-xl text-[#ef5644]">
+                ₹{getPrice()}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <button
+              className={`w-full py-3.5 rounded-xl text-white font-medium transition-all ${
+                isPaymentProcessing
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#ef5644] hover:bg-[#d04a3b] active:transform active:scale-[0.98] shadow-lg hover:shadow-xl"
+              }`}
+              onClick={handlePayment}
+              disabled={isPaymentProcessing}
+            >
+              {isPaymentProcessing ? (
+                <span className="flex items-center justify-center">
+                  <span className="animate-spin h-5 w-5 mr-2 border-2 border-t-transparent border-white rounded-full"></span>
+                  Processing Payment...
+                </span>
+              ) : (
+                "Confirm & Pay"
+              )}
+            </button>
+
+            <button
+              onClick={handleCancel}
+              className="w-full py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500 text-center">
+            By confirming, you agree to our{" "}
+            <button className="text-[#ef5644] hover:underline">Terms</button>{" "}
+            and{" "}
+            <button className="text-[#ef5644] hover:underline">
+              Cancellation Policy
+            </button>
+          </p>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

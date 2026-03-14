@@ -20,5 +20,5 @@ export const ENDPOINTS = {
   getUsers: "/api/admin/users",
   updateMenu: "/api/admin/menu/update",
   uploadImage: "/api/admin/upload/image",
-  updateOrderStatus: "/api/admin/order/status"
+  updateOrderStatus: "/api/admin/order/status",
 };

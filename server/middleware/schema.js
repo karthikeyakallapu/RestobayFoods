@@ -1,5 +1,8 @@
 import { z } from "zod";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat.js";
+
+dayjs.extend(customParseFormat);
 
 export const userSchema = z.object({
   name: z
@@ -24,27 +27,27 @@ export const tableSchema = z
   .object({
     bookingDate: z
       .string()
-      .refine((val) => dayjs(val, "DD-MM-YYYY").isValid(), {
-        message: "Invalid date format. Use DD-MM-YYYY"
+      .refine((val) => dayjs(val, "YYYY-MM-DD", true).isValid(), {
+        message: "Invalid date format. Use YYYY-MM-DD",
       }),
-    partySize: z.number().min(1, "Party size must be at least 1"),
+    partySize: z.coerce.number().int().min(1, "Party size must be at least 1"),
     startTime: z
       .string()
-      .refine((val) => dayjs(`2000-01-01T${val}`).isValid(), {
-        message: "Invalid time format. Use HH:mm"
+      .refine((val) => dayjs(val, "HH:mm", true).isValid(), {
+        message: "Invalid time format. Use HH:mm",
       }),
-    endTime: z.string().refine((val) => dayjs(`2000-01-01T${val}`).isValid(), {
-      message: "Invalid time format. Use HH:mm"
-    })
+    endTime: z.string().refine((val) => dayjs(val, "HH:mm", true).isValid(), {
+      message: "Invalid time format. Use HH:mm",
+    }),
   })
   .refine(
     (data) => {
-      const start = dayjs(`2000-01-01T${data.startTime}`);
-      const end = dayjs(`2000-01-01T${data.endTime}`);
+      const start = dayjs(data.startTime, "HH:mm", true);
+      const end = dayjs(data.endTime, "HH:mm", true);
       return end.isAfter(start);
     },
     {
       message: "End time must be greater than start time",
-      path: ["endTime"]
-    }
+      path: ["endTime"],
+    },
   );

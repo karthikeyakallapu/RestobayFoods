@@ -8,8 +8,8 @@ const token = Cookies.get("accessToken");
 export const restoClient = axios.create({
   baseURL,
   headers: {
-    Authorization: token ? `Bearer ${token}` : undefined
-  }
+    Authorization: token ? `Bearer ${token}` : undefined,
+  },
 });
 
 class RestoService {
@@ -33,7 +33,7 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
@@ -49,7 +49,7 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
@@ -58,7 +58,7 @@ class RestoService {
     try {
       const response = await restoClient.post(
         ENDPOINTS.resendVerificationMail,
-        data
+        data,
       );
       return response.data;
     } catch (err) {
@@ -68,7 +68,7 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
@@ -77,7 +77,7 @@ class RestoService {
     try {
       const response = await restoClient.post(
         ENDPOINTS.validateResetToken,
-        data
+        data,
       );
       return response.data;
     } catch (err) {
@@ -87,7 +87,7 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
@@ -103,7 +103,7 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
@@ -119,7 +119,7 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
@@ -201,7 +201,7 @@ class RestoService {
     try {
       const response = await restoClient.post(
         ENDPOINTS.checkTableAvailability,
-        data
+        data,
       );
       return response.data;
     } catch (err) {
@@ -211,37 +211,125 @@ class RestoService {
           err.response?.data?.errors?.[0]?.message ||
           err.response?.data?.message ||
           err.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       };
     }
   };
 
   // Admin APIs
 
-  getAllFoodOrders = async () => {
+  getAllFoodOrders = async (
+    page = 1,
+    limit = 10,
+    status = "",
+    search = "",
+    sortBy = "created_at",
+    sortDirection = "desc",
+  ) => {
     try {
-      const response = await restoClient.get(ENDPOINTS.AllFoodOrders);
+      const params = new URLSearchParams({
+        page,
+        limit,
+        ...(status && { status }),
+        ...(search && { search }),
+        sortBy,
+        sortDirection: sortDirection.toUpperCase(),
+      });
+
+      const response = await restoClient.get(
+        `${ENDPOINTS.AllFoodOrders}?${params}`,
+      );
       return response.data;
     } catch (err) {
-      return err.response?.data || { message: err.message };
+      console.error("Error fetching orders:", err);
+      throw err;
     }
   };
 
-  getAllTableBookings = async () => {
+  getAllTableBookings = async (
+    page = 1,
+    limit = 10,
+    status = "",
+    search = "",
+    sortBy = "booking_date",
+    sortDirection = "desc",
+  ) => {
     try {
-      const response = await restoClient.get(ENDPOINTS.AllTableBookings);
+      const params = new URLSearchParams({
+        page,
+        limit,
+        ...(status && { status }),
+        ...(search && { search }),
+        sortBy,
+        sortDirection: sortDirection.toUpperCase(),
+      });
+
+      const response = await restoClient.get(
+        `${ENDPOINTS.AllTableBookings}?${params}`,
+      );
       return response.data;
     } catch (err) {
-      return err.response?.data || { message: err.message };
+      console.error("Error fetching table bookings:", err);
+      return (
+        err.response?.data || {
+          success: false,
+          message: err.message,
+          bookings: [],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            total: 0,
+            limit: 10,
+            from: 0,
+            to: 0,
+            statusCounts: {
+              PENDING: 0,
+              CONFIRMED: 0,
+              CANCELLED: 0,
+              total: 0,
+            },
+          },
+        }
+      );
     }
   };
-
-  getAllUsers = async () => {
+  getAllUsers = async (
+    page = 1,
+    limit = 10,
+    role = "",
+    search = "",
+    sortBy = "name",
+    sortDirection = "asc",
+  ) => {
     try {
-      const response = await restoClient.get(ENDPOINTS.getUsers);
+      const params = new URLSearchParams({
+        page,
+        limit,
+        ...(role && { role }),
+        ...(search && { search }),
+        sortBy,
+        sortDirection: sortDirection.toUpperCase(),
+      });
+
+      const response = await restoClient.get(`${ENDPOINTS.getUsers}?${params}`);
       return response.data;
     } catch (err) {
-      return err.response?.data || { message: err.message };
+      console.error("Error fetching users:", err);
+      return (
+        err.response?.data || {
+          success: false,
+          message: err.message,
+          users: [],
+          pagination: {
+            currentPage: 1,
+            totalPages: 1,
+            total: 0,
+            limit: 10,
+            from: 0,
+            to: 0,
+          },
+        }
+      );
     }
   };
 
@@ -267,8 +355,8 @@ class RestoService {
     try {
       const response = await restoClient.post(ENDPOINTS.uploadImage, formData, {
         headers: {
-          "Content-Type": "multipart/form-data"
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
       return response.data;
     } catch (error) {
@@ -276,12 +364,17 @@ class RestoService {
     }
   };
 
-  updateOrderStatus = async (data) => {
+  updateOrderStatus = async ({ orderId, newStatus, component }) => {
     try {
-      const response = await restoClient.put(ENDPOINTS.updateOrderStatus, data);
+      const response = await restoClient.put(ENDPOINTS.updateOrderStatus, {
+        orderId,
+        newStatus,
+        component,
+      });
       return response.data;
     } catch (err) {
-      return err.response?.data || { message: err.message };
+      console.error("Error updating order status:", err);
+      throw err;
     }
   };
 }

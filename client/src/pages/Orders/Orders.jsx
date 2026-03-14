@@ -1,18 +1,48 @@
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Package, ShoppingBag, IndianRupee } from "lucide-react";
+import {
+  Clock,
+  ShoppingBag,
+  IndianRupee,
+  AlertCircle,
+  ChevronRight,
+} from "lucide-react";
 import restoApiInstance from "../../service/api/api";
 import { useNavigate } from "react-router-dom";
 import BlockWrapper from "@/_components/Wrappers/BlockWrapper";
 import MainLoader from "../../_components/Loaders/MainLoader";
+import { motion } from "framer-motion";
 import FastfoodIcon from "@mui/icons-material/Fastfood";
+import dayjs from "dayjs";
 
 const Orders = () => {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["resto-orders"],
-    queryFn: restoApiInstance.getOrders
+    queryFn: restoApiInstance.getOrders,
+    staleTime: 30000,
   });
 
   const navigate = useNavigate();
+
+  const getStatusStyles = (status) => {
+    switch (status) {
+      case "PAYMENT_PENDING":
+        return "bg-amber-100 text-amber-700 border-amber-200";
+      case "COMPLETED":
+        return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "CONFIRMED":
+        return "bg-green-100 text-green-700 border-green-200";
+      case "PROCESSING":
+        return "bg-blue-100 text-blue-700 border-blue-200";
+      case "PENDING":
+        return "bg-amber-100 text-amber-700 border-amber-200";
+      case "FAILED":
+        return "bg-red-100 text-red-700 border-red-200";
+      case "CANCELLED":
+        return "bg-rose-100 text-rose-700 border-rose-200";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
 
   if (isLoading) {
     return <MainLoader />;
@@ -21,136 +51,162 @@ const Orders = () => {
   if (isError) {
     return (
       <BlockWrapper>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="text-red-500 text-lg font-semibold mb-2">
-              Unable to load orders
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center min-h-[400px]"
+        >
+          <div className="bg-red-50 p-8 rounded-xl border border-red-200 text-center max-w-md">
+            <div className="bg-red-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={40} className="text-red-600" />
             </div>
-            <p className="text-gray-600">Please try again later</p>
+            <h3 className="text-xl font-bold text-red-700 mb-3">
+              Failed to load orders
+            </h3>
+            <p className="text-red-600 mb-6">Please try again later</p>
+            <button
+              onClick={() => refetch()}
+              className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Try Again
+            </button>
           </div>
-        </div>
+        </motion.div>
       </BlockWrapper>
     );
   }
 
-  const hasOrders = data?.orders?.length > 0;
+  const orders = data?.orders || [];
+  const hasOrders = orders.length > 0;
 
   return (
     <BlockWrapper>
-      <div className="mb-8">
-        <h1 className="anton tracking-wide text-2xl text-center text-[#ef5644]">
-          Your Orders
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Your <span className="text-[#ef5644]">Orders</span>
         </h1>
-        <div className="w-22 h-1 bg-[#ef5644] mx-auto rounded"></div>
+        <div className="w-24 h-1 bg-gradient-to-r from-[#ef5644] to-[#ff8a7a] mx-auto rounded-full"></div>
       </div>
 
-      {!hasOrders && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <ShoppingBag className="mx-auto text-gray-400 mb-4" size={48} />
-          <p className="text-gray-600 font-medium">No orders found</p>
-          <button
-            className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+      {!hasOrders ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl"
+        >
+          <div className="bg-white rounded-full p-6 shadow-lg mb-6">
+            <ShoppingBag size={64} className="text-[#ef5644]" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-3">
+            No orders yet
+          </h3>
+          <p className="text-gray-600 text-center mb-8 max-w-md">
+            Hungry? Browse our delicious menu and place your first order!
+          </p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => navigate("/menu")}
+            className="px-8 py-4 bg-gradient-to-r from-[#ef5644] to-[#ff8a7a] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
           >
             Browse Menu
-          </button>
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {hasOrders &&
-          data.orders.map((order) => (
-            <div
+            <ChevronRight size={20} />
+          </motion.button>
+        </motion.div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order, index) => (
+            <motion.div
               key={order.id}
-              className="rounded-lg bg-orange-50 overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all border border-orange-100"
             >
               <div className="flex flex-col md:flex-row">
-                <div className="md:w-1/4 p-4">
-                  <FastfoodIcon
-                    style={{ fontSize: 65, color: "#ef5644" }}
-                    className="mx-auto mt-4 mb-2"
-                  />
+                {/* Icon Section */}
+                <div className="md:w-24 bg-gradient-to-br from-[#ef5644] to-[#ff8a7a] flex items-center justify-center p-6">
+                  <FastfoodIcon style={{ fontSize: 48, color: "white" }} />
                 </div>
 
-                <div className="p-4 md:w-3/4 ubuntu">
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center">
-                      <Package size={18} className="text-red-500 mr-2" />
-                      <h2 className="font-semibold text-gray-800">
-                        Order #
-                        <span className="font-bold text-red-500">
-                          {order.id}
-                        </span>
-                      </h2>
+                {/* Order Details */}
+                <div className="flex-1 p-6">
+                  {/* Header Row */}
+                  <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <span className="text-sm text-gray-500">Order ID</span>
+                        <h3 className="text-xl font-bold text-gray-800">
+                          #{order.id}
+                        </h3>
+                      </div>
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        order.status === "COMPLETED"
-                          ? "bg-green-100 text-green-800"
-                          : order.status === "PROCESSING"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </div>
-
-                  <div className="mb-3">
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">
-                      Items
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {order.items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="bg-white px-3 py-1 rounded-full text-sm border border-gray-200"
-                        >
-                          {item.name}{" "}
-                          <span className="font-medium">×{item.quantity}</span>
-                        </div>
-                      ))}
+                    <div className="flex gap-2">
+                      <span
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium border ${getStatusStyles(order.status)}`}
+                      >
+                        {order.status}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ">
-                    <div className="flex items-center">
-                      <IndianRupee size={18} className="text-red-500 mr-2" />
-                      <div className="flex items-center justify-center text-sm">
-                        <span className="text-gray-500">Amount:</span>{" "}
-                        <span className="font-medium">
-                          &nbsp;
-                          {order.total_amount}
-                        </span>
-                        <span
-                          className={`px-3  ml-4 mt-1 py-1 rounded-full text-xs font-medium ${
-                            order.payment_status === "COMPLETED"
-                              ? "bg-green-100 text-green-800"
-                              : order.payment_status === "PAYMENT_PENDING"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {order.payment_status}
-                        </span>
+                  {/* Items */}
+                  {order.items && order.items.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-gray-500 mb-2">
+                        Items
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {order.items.map((item) => (
+                          <span
+                            key={item.id}
+                            className="bg-orange-50 px-4 py-2 rounded-xl text-sm border border-orange-200 text-gray-700"
+                          >
+                            {item.name}{" "}
+                            <span className="font-bold text-[#ef5644] ml-1">
+                              ×{item.quantity}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-orange-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <IndianRupee size={18} className="text-[#ef5644]" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Total Amount</p>
+                        <p className="font-bold text-lg text-[#ef5644]">
+                          ₹{order.total_amount}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center ">
-                      <Clock size={18} className="text-red-500 mr-2" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Clock size={18} className="text-[#ef5644]" />
+                      </div>
                       <div>
-                        <span className="text-gray-500">Placed:</span>{" "}
-                        <span className="font-medium text-sm">
-                          {new Date(order.updated_at).toLocaleString()}
-                        </span>
+                        <p className="text-xs text-gray-500">Order Placed</p>
+                        <p className="font-semibold text-gray-800">
+                          {dayjs(order.updated_at).format(
+                            "MMM D, YYYY [at] h:mm A",
+                          )}
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-      </div>
+        </div>
+      )}
     </BlockWrapper>
   );
 };

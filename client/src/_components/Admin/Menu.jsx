@@ -31,11 +31,10 @@ const Menu = () => {
 
   const menuMutation = useMutation({
     mutationFn: async ({ action, payload }) => {
-      const response = await restoApiInstance.updateMenu({
+      return restoApiInstance.updateMenu({
         action,
         payload
       });
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["restoMenu"] });
@@ -138,10 +137,9 @@ const Menu = () => {
     menuMutation.mutate({ action, payload });
   };
 
-  const editItem = (item, action) => {
+  const editItem = (item) => {
     useMenuStore.setState({ selectedItem: item });
     openModal("edititem");
-    menuMutation.mutate({ action, payload: { item_id: item.id } });
   };
 
   return (
@@ -339,7 +337,7 @@ const Menu = () => {
                           <button
                             className="text-indigo-600 hover:text-indigo-900 px-2 py-1 rounded hover:bg-indigo-50"
                             disabled={menuMutation.isPending}
-                            onClick={() => editItem(item, "EDIT_ITEM")}
+                            onClick={() => editItem(item)}
                           >
                             Edit
                           </button>

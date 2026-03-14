@@ -2,6 +2,9 @@ import React from "react";
 
 const Home = React.lazy(() => import("@/pages/Home"));
 const Login = React.lazy(() => import("@/pages/Auth/Login"));
+const Register = React.lazy(() => import("@/pages/Auth/Register"));
+const ResendMail = React.lazy(() => import("@/pages/Auth/ResendMail"));
+const ForgotPassword = React.lazy(() => import("@/pages/Auth/ForgotPassword"));
 const Menu = React.lazy(() => import("@/pages/Menu/Menu"));
 const Orders = React.lazy(() => import("../pages/Orders/Orders"));
 const Tables = React.lazy(() => import("../pages/Tables/Tables"));
@@ -38,6 +41,36 @@ const routesConfig = [
       <PublicRoute>
         <React.Suspense fallback={<div>Loading...</div>}>
           <Login />
+        </React.Suspense>
+      </PublicRoute>
+    )
+  },
+  {
+    path: "/register",
+    element: (
+      <PublicRoute>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <Register />
+        </React.Suspense>
+      </PublicRoute>
+    )
+  },
+  {
+    path: "/resend-mail",
+    element: (
+      <PublicRoute>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <ResendMail />
+        </React.Suspense>
+      </PublicRoute>
+    )
+  },
+  {
+    path: "/forgot-password",
+    element: (
+      <PublicRoute>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <ForgotPassword />
         </React.Suspense>
       </PublicRoute>
     )

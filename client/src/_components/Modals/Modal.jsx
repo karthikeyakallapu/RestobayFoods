@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 import useModalStore from "../../store/use-modal";
-import CancelIcon from "@mui/icons-material/Cancel";
 import Cart from "../Cart/Cart";
 import Table from "../Table/Table";
 import AddNewItem from "../Admin/AddNewItem";
@@ -11,7 +10,7 @@ const MODAL_COMPONENTS = {
   cart: Cart,
   table: Table,
   additem: AddNewItem,
-  edititem: EditItem
+  edititem: EditItem,
 };
 
 function Modal() {
@@ -49,24 +48,17 @@ function Modal() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="z-50 h-full w-full flex items-center justify-center">
+      <div className="z-50  flex items-center justify-center">
         <motion.div
-          className="bg-[#fff0df] relative rounded-md  border-6 border-[#ef5644] shadow-lg p-4"
+          className=" relative rounded-md   "
           ref={localRef}
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
           exit={{ scale: 0.9 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex flex-col p-2">
-            <div className="flex items-center justify-end mb-4">
-              <div onClick={closeModal}>
-                <CancelIcon
-                  sx={{ color: "#ef5644", fontSize: "35px" }}
-                  cursor={"pointer"}
-                />
-              </div>
-            </div>
+          <div className="flex flex-col ">
+            <div className="flex items-center justify-end mb-4"></div>
             <ComponentToRender />
           </div>
         </motion.div>

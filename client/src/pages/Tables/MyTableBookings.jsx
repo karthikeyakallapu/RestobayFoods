@@ -1,15 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, Users, DollarSign, Table } from "lucide-react";
+import { Calendar, Clock, Users, Table as TableIcon, AlertCircle } from "lucide-react";
 import restoApiInstance from "../../service/api/api";
 import BlockWrapper from "@/_components/Wrappers/BlockWrapper";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import MainLoader from "../../_components/Loaders/MainLoader";
+import { motion } from "framer-motion";
 
 const MyTableBookings = () => {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["resto-table-bookings"],
-    queryFn: restoApiInstance.getTableBookings
+    queryFn: restoApiInstance.getTableBookings,
+    staleTime: 30000,
   });
 
   if (isLoading) {
@@ -19,150 +21,175 @@ const MyTableBookings = () => {
   if (isError) {
     return (
       <BlockWrapper>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="text-red-500 text-lg font-semibold mb-2">
-              Unable to load bookings
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center min-h-[400px]"
+        >
+          <div className="bg-red-50 p-8 rounded-xl border border-red-200 text-center max-w-md">
+            <div className="bg-red-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={40} className="text-red-600" />
             </div>
-            <p className="text-gray-600">Please try again later</p>
+            <h3 className="text-xl font-bold text-red-700 mb-3">
+              Failed to load bookings
+            </h3>
+            <p className="text-red-600 mb-6">Please try again later</p>
+            <button
+              onClick={() => refetch()}
+              className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Try Again
+            </button>
           </div>
-        </div>
+        </motion.div>
       </BlockWrapper>
     );
   }
 
-  const hasBookings = data?.bookings?.length > 0;
+  const bookings = data?.bookings || [];
+  const hasBookings = bookings.length > 0;
+
+  const getStatusStyles = (status) => {
+    switch(status?.toLowerCase()) {
+      case 'confirmed':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'pending':
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'cancelled':
+        return 'bg-rose-100 text-rose-700 border-rose-200';
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
 
   return (
     <BlockWrapper>
-      <div className="mb-8">
-        <h1 className="anton tracking-wide text-2xl text-center text-[#ef5644]">
-          Table Bookings
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          My Table <span className="text-[#ef5644]">Bookings</span>
         </h1>
-        <div className="w-22 h-1 bg-[#ef5644] mx-auto rounded"></div>
+        <div className="w-24 h-1 bg-gradient-to-r from-[#ef5644] to-[#ff8a7a] mx-auto rounded-full"></div>
       </div>
 
-      {!hasBookings && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <Table className="mx-auto text-gray-400 mb-4" size={48} />
-          <p className="text-gray-600 font-medium">No bookings found</p>
+      {!hasBookings ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl"
+        >
+          <div className="bg-white rounded-full p-6 shadow-lg mb-6">
+            <TableIcon size={64} className="text-[#ef5644]" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-3">No bookings yet</h3>
+          <p className="text-gray-600 text-center mb-8 max-w-md">
+            Ready for a delicious meal? Book a table at your favorite restaurant.
+          </p>
           <Link to="/table">
-            <button className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors">
-              Book a Table
-            </button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-4 bg-gradient-to-r from-[#ef5644] to-[#ff8a7a] text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              Book a Table Now
+            </motion.button>
           </Link>
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {hasBookings &&
-          data.bookings.map((booking) => (
-            <div
+        </motion.div>
+      ) : (
+        <div className="space-y-4">
+          {bookings.map((booking, index) => (
+            <motion.div
               key={booking.id}
-              className="rounded-lg bg-orange-50 overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all border border-orange-100"
             >
               <div className="flex flex-col md:flex-row">
-                <div className="md:w-1/6 bg-orange-100 flex items-center justify-center p-4">
-                  <Table size={48} className="text-red-500" />
+                {/* Table Icon Section */}
+                <div className="md:w-24 bg-gradient-to-br from-[#ef5644] to-[#ff8a7a] flex items-center justify-center p-6">
+                  <TableIcon size={40} className="text-white" />
                 </div>
 
-                <div className="p-4 md:w-5/6 ubuntu">
-                  <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center">
-                      <h2 className="font-semibold text-gray-800">
-                        Booking #
-                        <span className="font-bold text-red-500">
-                          {booking.id}
-                        </span>
-                      </h2>
+                {/* Booking Details */}
+                <div className="flex-1 p-6">
+                  {/* Header Row */}
+                  <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                    <div>
+                      <span className="text-sm text-gray-500">Booking ID</span>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        #{booking.id}
+                      </h3>
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        booking.status === "Confirmed"
-                          ? "bg-green-100 text-green-800"
-                          : booking.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : booking.status === "Cancelled"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {booking.status}
+                    <span className={`px-4 py-1.5 rounded-full text-sm font-medium border ${getStatusStyles(booking.status)}`}>
+                      {booking.status || 'Pending'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm mb-4">
-                    <div className="flex items-center">
-                      <Table size={16} className="text-red-500 mr-2" />
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <TableIcon size={18} className="text-[#ef5644]" />
+                      </div>
                       <div>
-                        <span className="text-gray-500">Table Number:</span>{" "}
-                        <span className="font-medium">
-                          {booking.table_number}
-                        </span>
+                        <p className="text-xs text-gray-500">Table Number</p>
+                        <p className="font-semibold text-gray-800">{booking.table_number}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <Users size={16} className="text-red-500 mr-2" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Users size={18} className="text-[#ef5644]" />
+                      </div>
                       <div>
-                        <span className="text-gray-500">People:</span>{" "}
-                        <span className="font-medium">
-                          {booking.number_of_people}
-                        </span>
+                        <p className="text-xs text-gray-500">Party Size</p>
+                        <p className="font-semibold text-gray-800">{booking.number_of_people} guests</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <Calendar size={16} className="text-red-500 mr-2" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Calendar size={18} className="text-[#ef5644]" />
+                      </div>
                       <div>
-                        <span className="text-gray-500">Date:</span>{" "}
-                        <span className="font-medium">
+                        <p className="text-xs text-gray-500">Date</p>
+                        <p className="font-semibold text-gray-800">
                           {dayjs(booking.booking_date).format("MMM D, YYYY")}
-                        </span>
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <DollarSign size={16} className="text-red-500 mr-2" />
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Clock size={18} className="text-[#ef5644]" />
+                      </div>
                       <div>
-                        <span className="text-gray-500">Amount:</span>{" "}
-                        <span className="font-medium">${booking.amount}</span>
+                        <p className="text-xs text-gray-500">Time</p>
+                        <p className="font-semibold text-gray-800">
+                          {booking.start_time} - {booking.end_time}
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-orange-100 rounded-md mb-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center">
-                        <Clock size={16} className="text-red-500 mr-2" />
-                        <div>
-                          <span className="text-gray-500">Start Time:</span>{" "}
-                          <span className="font-medium">
-                            {booking.start_time}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center">
-                        <Clock size={16} className="text-red-500 mr-2" />
-                        <div>
-                          <span className="text-gray-500">End Time:</span>{" "}
-                          <span className="font-medium">
-                            {booking.start_time}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-500">
-                    Booked on {new Date(booking.updated_at).toLocaleString()}
+                  {/* Footer */}
+                  <div className="flex justify-between items-center pt-4 border-t border-orange-100">
+                    <p className="text-xs text-gray-400">
+                      Booked on {dayjs(booking.updated_at).format("MMM D, YYYY [at] h:mm A")}
+                    </p>
+                    {booking.amount && (
+                      <p className="font-bold text-[#ef5644]">
+                        ₹{booking.amount}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-      </div>
+        </div>
+      )}
     </BlockWrapper>
   );
 };
