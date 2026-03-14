@@ -81,38 +81,39 @@ const NavBar = () => {
               </motion.div>
             )}
 
-            {/* Cart with food icon */}
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative"
-            >
-              <button
-                onClick={() => openModal("cart")}
-                className="bg-white flex items-center px-4 py-2.5 rounded-xl cursor-pointer hover:shadow-xl transition-all relative group"
+            {isAuthenticated && (
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative"
               >
-                <div className="relative">
-                  <FastfoodIcon sx={{ color: "#ef5644", fontSize: 24 }} />
-                  {totalItems > 0 && (
-                    <>
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-2 -right-2 bg-[#ef5644] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        {totalItems > 9 ? "9+" : totalItems}
-                      </motion.span>
-                      <motion.span
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#ef5644]/30"
-                      />
-                    </>
-                  )}
-                </div>
-                <span className="ml-2 font-bold text-gray-700">Cart</span>
-              </button>
-            </motion.div>
+                <button
+                  onClick={() => openModal("cart")}
+                  className="bg-white flex items-center px-4 py-2.5 rounded-xl cursor-pointer hover:shadow-xl transition-all relative group"
+                >
+                  <div className="relative">
+                    <FastfoodIcon sx={{ color: "#ef5644", fontSize: 24 }} />
+                    {totalItems > 0 && (
+                      <>
+                        <motion.span
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -top-2 -right-2 bg-[#ef5644] text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-lg"
+                        >
+                          {totalItems > 9 ? "9+" : totalItems}
+                        </motion.span>
+                        <motion.span
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#ef5644]/30"
+                        />
+                      </>
+                    )}
+                  </div>
+                  <span className="ml-2 font-bold text-gray-700">Cart</span>
+                </button>
+              </motion.div>
+            )}
 
             {/* Auth Section */}
             {isAuthenticated ? (
