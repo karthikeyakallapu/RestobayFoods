@@ -7,8 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, Sparkles, ArrowRight, Utensils } from "lucide-react";
 
 const CartItem = memo(({ item, addToCart, removeFromCart }) => {
-  // Random food icon for fun
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

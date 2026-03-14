@@ -19,12 +19,13 @@ const initializeAuthState = () => {
   const token = getCookie("accessToken");
   const role = getCookie("role");
   const decodedToken = token ? parseToken(token) : null;
+
   return {
     accessToken: token,
     isAuthenticated: !!token,
     role: role,
-    userId: decodedToken?.userid || null,
-    username: decodedToken?.username || null
+    userId: decodedToken?.id || null,
+    username: decodedToken?.name || null,
   };
 };
 
@@ -44,7 +45,7 @@ const useAuthStore = create((set) => ({
       isAuthenticated: true,
       username: decodedToken.username,
       role: decodedToken.role,
-      userId: decodedToken.userid
+      userId: decodedToken.userid,
     });
 
     // ✅ Fetch cart after login
@@ -61,9 +62,9 @@ const useAuthStore = create((set) => ({
       isAuthenticated: false,
       username: null,
       role: null,
-      userId: null
+      userId: null,
     });
-  }
+  },
 }));
 
 export default useAuthStore;

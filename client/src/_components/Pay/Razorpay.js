@@ -20,7 +20,7 @@ export async function displayRazorpay(navigate, type, data) {
 
   try {
     const res = await loadScript(
-      "https://checkout.razorpay.com/v1/checkout.js"
+      "https://checkout.razorpay.com/v1/checkout.js",
     );
     if (!res) {
       console.error("Razorpay script failed to load");
@@ -49,7 +49,7 @@ export async function displayRazorpay(navigate, type, data) {
       currency: "INR",
       name: "Restobay Foods",
       description: "Food Order",
-      image: "https://restobay.vercel.app/images/logo_icon.png",
+      image: "https://restobayfoods.vercel.app/images/logo_icon.png",
       order_id: order.orderId,
 
       handler: async function (response) {
@@ -59,7 +59,7 @@ export async function displayRazorpay(navigate, type, data) {
             razorpayPaymentId: response.razorpay_payment_id,
             razorpayOrderId: response.razorpay_order_id,
             razorpaySignature: response.razorpay_signature,
-            artifact: order.artifact
+            artifact: order.artifact,
           };
 
           const result = await restoApiInstance.verifyPayment(data);
@@ -77,7 +77,7 @@ export async function displayRazorpay(navigate, type, data) {
           console.error("Payment verification failed:", error);
         }
       },
-      theme: { color: "#ef5644" }
+      theme: { color: "#ef5644" },
     };
 
     const paymentObject = new window.Razorpay(options);

@@ -232,10 +232,6 @@ const Menu = () => {
 
       {/* Results count */}
       <div className="flex justify-between items-center mt-4 px-4">
-        <p className="text-sm text-gray-600">
-          Showing <span className="font-medium">{filteredItems.length}</span>{" "}
-          items
-        </p>
         {search && (
           <button
             onClick={() => useMenuStore.getState().setSearch("")}

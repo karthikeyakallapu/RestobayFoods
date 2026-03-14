@@ -106,7 +106,7 @@ const MenuBar = () => {
   };
 
   return (
-    <div className="sticky top-12 z-30 bg-[#fff0df]  p-6  ">
+    <div className="sticky top-18 z-30 bg-[#fff0df]  p-6  ">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Categories Section */}
         <div className="relative flex items-center w-full md:w-auto">
